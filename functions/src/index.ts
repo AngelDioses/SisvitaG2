@@ -1,15 +1,13 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Deshabilitar temporalmente regla 'any' si causa problemas
+
 // ==========================================================================
 // Cloud Functions para Sisvita Backend Lógico con Firebase
 // ==========================================================================
 
-// --- Imports Principales ---
 import * as functions from "firebase-functions/v2";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import {HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import {Timestamp} from "firebase-admin/firestore";
-// import {StorageObjectData} from "firebase-functions/v2/storage"; // No usado
 import {onObjectFinalized} from "firebase-functions/v2/storage";
 
 // --- Imports de Node.js ---
@@ -47,15 +45,7 @@ interface OrientationRequestData {
   nombre?: string;
   emociones?: { [key: string]: number };
 }
-// Comentada porque no se usó explícitamente, pero puedes descomentar si la usas
-// interface FirestoreAnalysisResultData {
-//   userId: string;
-//   storagePath: string;
-//   status: string;
-//   resultados?: EmotionalAnalysisResponseData;
-//   error?: string;
-//   timestamp?: Timestamp;
-// }
+
 
 // ==========================================================================
 // 1. Cloud Function: submitTestResults (HTTPS Callable)
@@ -366,4 +356,4 @@ export const processUploadedVideo = onObjectFinalized(
           }
         }
       }
-    }); // Fin processUploadedVideo
+    }); 
