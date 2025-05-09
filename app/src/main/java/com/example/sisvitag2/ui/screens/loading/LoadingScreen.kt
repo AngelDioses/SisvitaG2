@@ -16,16 +16,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.sisvitag2.R
-// import com.fisi.sisvita.data.model.emotionalAnalysis.EmotionalAnalysisResponse // No se necesita aquí directamente
 import com.example.sisvitag2.ui.components.LottieAnimationComponent
 import com.example.sisvitag2.ui.theme.SisvitaG2Theme
-// --- ELIMINAR ESTOS IMPORTS ---
-// import com.fisi.sisvita.util.toJson
-// import kotlinx.serialization.encodeToString
-// import kotlinx.serialization.json.Json
-// -----------------------------
+
 import org.koin.androidx.compose.koinViewModel
-// import java.io.File
 import java.math.RoundingMode
 
 @Composable
@@ -45,16 +39,11 @@ fun LoadingScreen(
                     hasNavigatedOrShownError = true
                     Log.d("LoadingScreen", "Análisis exitoso. Navegando a resultados con videoId: ${state.videoId}")
 
-                    // --- NAVEGACIÓN CORREGIDA ---
-                    // Navega a ResultsScreen pasando solo el videoId
-                    // La pantalla ResultsScreen se encargará de obtener los detalles
-                    // usando el videoId y su propio ViewModel.
                     navController.navigate("results/${state.videoId}") { // Usa la ruta con argumento
                         popUpTo("Loading") { inclusive = true }
                         launchSingleTop = true
                     }
-                    // viewModel.resetState() // Resetear opcionalmente
-                    // -----------------------------
+
                 }
                 is AnalysisState.Error -> {
                     hasNavigatedOrShownError = true
@@ -68,7 +57,6 @@ fun LoadingScreen(
         }
     }
 
-    // Determina el mensaje a mostrar en LoadingView
     val statusMessage = when (analysisState) {
         is AnalysisState.Uploading -> "Subiendo video..."
         is AnalysisState.Processing -> "Analizando resultados..." // Mensaje más específico
@@ -82,7 +70,6 @@ fun LoadingScreen(
     LoadingView(statusMessage = statusMessage)
 }
 
-// Vista de Carga (Sin cambios necesarios aquí)
 @Composable
 fun LoadingView(statusMessage: String = "Analizando...") {
     Column(
@@ -105,13 +92,6 @@ fun LoadingView(statusMessage: String = "Analizando...") {
     }
 }
 
-// --- LAS FUNCIONES UTILITARIAS YA NO SON NECESARIAS EN ESTE ARCHIVO ---
-// fun mapFirebaseEmotionsToFloatPercentages(...) { ... }
-// fun calculateAnxietyLevel(...) { ... }
-// --- MOVERLAS A util/EmotionUtils.kt y usarlas en ResultsViewModel ---
-
-
-// Preview (sin cambios necesarios aquí)
 @Preview(showBackground = true)
 @Composable
 fun LoadingViewPreview() {

@@ -1,7 +1,7 @@
-package com.example.sisvitag2.ui.screens.camera // Ajusta paquete
+package com.example.sisvitag2.ui.screens.camera
 
 import android.Manifest
-import android.annotation.SuppressLint // Para MissingPermission en startRecording
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -36,13 +36,13 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.viewmodel.compose.viewModel // Para VM local
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.sisvitag2.R // Ajusta import
-import com.example.sisvitag2.ui.screens.loading.LoadingViewModel // Importa VM de carga
-import kotlinx.coroutines.launch // Para scope
-import org.koin.androidx.compose.koinViewModel // Para VM de Koin
-import kotlinx.coroutines.delay // <-- AÑADIR ESTE IMPORT
+import com.example.sisvitag2.R
+import com.example.sisvitag2.ui.screens.loading.LoadingViewModel
+import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
+import kotlinx.coroutines.delay
 
 
 @Composable
@@ -69,11 +69,9 @@ fun CameraScreen(navController: NavController) {
         } else {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
-        // Podrías necesitar pedir permiso de RECORD_AUDIO también si lo habilitas
-        // val recordAudioGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
     }
 
-    // Contenido principal
     if (hasCameraPermission /* && recordAudioGranted si es necesario */) {
         CameraContent(
             navController = navController,
@@ -81,7 +79,6 @@ fun CameraScreen(navController: NavController) {
             loadingViewModel = loadingViewModel
         )
     } else {
-        // Mensaje mientras se espera o si fue denegado
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(text = "Se requieren permisos de cámara...", color = Color.Gray)
         }
@@ -119,7 +116,6 @@ fun CameraContent(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                // --- CORRECCIÓN PADDING ---
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 64.dp), // Aplicar paddings separados
             // ---------------------------
@@ -127,7 +123,7 @@ fun CameraContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Flash Button
-            IconButton( /* ... (código sin cambios) ... */
+            IconButton(
                 onClick = { cameraViewModel.toggleFlash() },
                 modifier = Modifier.size(56.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary)
             ) {
@@ -138,7 +134,6 @@ fun CameraContent(
             IconButton(
                 onClick = {
                     if (isRecording) {
-                        // --- AL DETENER ---
                         Log.d("CameraContent", "Botón Detener presionado.")
                         cameraViewModel.stopRecording() // Llama a stop (espera callback Finalize)
                         // El estado isRecording cambiará a false en el callback del ViewModel
@@ -191,7 +186,7 @@ fun CameraContent(
             }
 
             // Switch Camera Button
-            IconButton( /* ... (código sin cambios) ... */
+            IconButton(
                 onClick = { cameraViewModel.toggleCamera() },
                 modifier = Modifier.size(56.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary)
             ) {

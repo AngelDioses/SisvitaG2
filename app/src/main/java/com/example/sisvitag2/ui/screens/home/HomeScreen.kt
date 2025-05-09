@@ -72,7 +72,6 @@ fun HomeScreen(
     }
 }
 
-// --- Composable para el Mensaje de Bienvenida ---
 @Composable
 fun Welcome(userName: String?) {
     Box(modifier = Modifier.fillMaxWidth()) { // Contenedor para el saludo
@@ -102,7 +101,6 @@ fun Welcome(userName: String?) {
     }
 }
 
-// --- Composable para la Sección de Tests ---
 @Composable
 fun TestSection(
     tests: List<Test>,

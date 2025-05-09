@@ -7,20 +7,16 @@ import androidx.lifecycle.viewModelScope
 // Importa Repositorios y modelos necesarios
 import com.example.sisvitag2.data.repository.emotionalAnalysis.EmotionalAnalysisRepository
 import com.example.sisvitag2.data.repository.emotionalAnalysis.FirestoreAnalysisResult
-import com.example.sisvitag2.data.repository.emotionalAnalysis.EmotionalAnalysisResponse // Ajusta el import si es necesario
-// Importa las funciones utilitarias
-import com.example.sisvitag2.util.calculateAnxietyLevel // Ajusta el import si es necesario
-import com.example.sisvitag2.util.mapFirebaseEmotionsToFloatPercentages // Ajusta el import si es necesario
-// Importa Firebase Auth y Firestore
+import com.example.sisvitag2.data.repository.emotionalAnalysis.EmotionalAnalysisResponse
+import com.example.sisvitag2.util.calculateAnxietyLevel
+import com.example.sisvitag2.util.mapFirebaseEmotionsToFloatPercentages
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-// Importa StateFlows y coroutines
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-// Importa await para Tasks de Firebase
 import kotlinx.coroutines.tasks.await
 
 /**

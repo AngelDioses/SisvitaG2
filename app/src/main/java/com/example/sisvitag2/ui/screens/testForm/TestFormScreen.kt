@@ -32,7 +32,6 @@ import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun TestFormScreen(
-    // paddingValues: PaddingValues, // ELIMINADO
     navController: NavController,
     testId: String?, // Recibe el testId de la ruta
     viewModel: TestViewModel = koinViewModel() // Usar TestViewModel
@@ -50,16 +49,9 @@ fun TestFormScreen(
             Log.d("TestFormScreen", "TestId no nulo: $testId. Llamando a selectTestAndLoadDetails.")
             viewModel.selectTestAndLoadDetails(testId)
         } else {
-            // Si testId es nulo, y no hay un test seleccionado previamente en el VM,
-            // podría ser un estado de error o una pantalla vacía.
             if (uiState.selectedTestId == null) {
                 Log.w("TestFormScreen", "testId es nulo y no hay test seleccionado en ViewModel.")
-                // Quizás mostrar un mensaje o navegar atrás si un test es siempre requerido.
-                // Por ahora, el Box de abajo manejará el mensaje.
             } else {
-                // Si testId es nulo pero ya hay un test seleccionado en el VM (quizás de una navegación anterior),
-                // podríamos optar por mostrar ese o forzar la selección.
-                // Aquí, asumimos que si testId de la ruta es nulo, se espera un estado "sin test".
                 Log.d("TestFormScreen", "testId de ruta es nulo, pero selectedTestId en VM es ${uiState.selectedTestId}")
             }
         }
@@ -82,15 +74,12 @@ fun TestFormScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // El padding del Scaffold ya es manejado por el NavHost que contiene esta pantalla.
-            // Añadir padding interno si es necesario para el contenido específico de TestFormScreen.
             .padding(top = 16.dp) // Ejemplo de padding superior
     ) {
         when {
             uiState.isLoadingPreguntasRespuestas -> {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
-            // Usar el selectedTestId del uiState para determinar si se cargó un test
             uiState.selectedTestId == null -> {
                 Text(
                     text = "Por favor, seleccione un test para continuar.",
@@ -158,9 +147,6 @@ fun TestFormScreen(
     }
 }
 
-// TestFormContent, QuestionItem, ResultDialog, ErrorDialog y Previews
-// (Como te los di antes, ya estaban bien sin paddingValues en TestFormContent)
-// ... (Pega aquí el resto de tu código de TestFormScreen.kt: TestFormContent, QuestionItem, ResultDialog, ErrorDialog, y Previews)
 @Composable
 fun TestFormContent(
     // paddingValues: PaddingValues, // ELIMINADO

@@ -1,8 +1,6 @@
 package com.example.sisvitag2.data.repository.emotionalOrientation // Ajusta paquete
 
-// --- IMPORTAR LA DATA CLASS DESDE SU ARCHIVO ---
 import com.example.sisvitag2.data.repository.emotionalOrientation.EmotionalOrientationResponse // <-- ¡IMPORTANTE! Ajusta esta ruta
-// ----------------------------------------------
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.functions.FirebaseFunctions

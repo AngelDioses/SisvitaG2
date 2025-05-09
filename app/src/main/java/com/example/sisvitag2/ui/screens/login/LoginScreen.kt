@@ -14,7 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color // Importar Color si se usa
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -27,14 +27,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.example.sisvitag2.R // Ajusta import R
-// Importa ViewModel, Estados y Errores
+import com.example.sisvitag2.R
 import com.example.sisvitag2.ui.screens.login.LoginViewModel
 import com.example.sisvitag2.ui.screens.login.LoginUiState
-import com.example.sisvitag2.data.repository.LoginError // Ajusta import si es necesario
+import com.example.sisvitag2.data.repository.LoginError
 // Importa Theme y Fuentes
-import com.example.sisvitag2.ui.theme.SisvitaG2Theme // Ajusta import
-import com.example.sisvitag2.ui.theme.philosopherBold // Asegúrate que exista y esté importado
+import com.example.sisvitag2.ui.theme.SisvitaG2Theme
+import com.example.sisvitag2.ui.theme.philosopherBold
 
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
@@ -128,7 +127,7 @@ fun LoginScreen(
         )
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button( /* ... (Botón Login sin cambios) ... */
+        Button(
             onClick = { focusManager.clearFocus(); if (!isLoading) { viewModel.login(email.trim(), password) } },
             modifier = Modifier.fillMaxWidth().height(48.dp),
             enabled = !isLoading
@@ -148,12 +147,9 @@ fun LoginScreen(
             fontSize = 14.sp,
             modifier = Modifier
                 .clickable(enabled = !isLoading) {
-                    // --- CORRECCIÓN AQUÍ ---
                     navController.navigate("RegisterRoute") // Usa la ruta definida en AuthNavHost
-                    // -----------------------
                 }
                 .padding(8.dp)
-            // .align(Alignment.CenterHorizontally) // No necesario si Column ya lo centra
         )
     }
 }

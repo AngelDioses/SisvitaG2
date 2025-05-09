@@ -6,10 +6,8 @@ import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import kotlinx.coroutines.tasks.await
 
-// Ya no necesitamos OkHttp, Request, JSONObject, etc. para el login
 
 class LoginRepository(
-    // Inyecta FirebaseAuth (vía Koin)
     private val auth: FirebaseAuth
 ) {
 
@@ -44,17 +42,8 @@ class LoginRepository(
             val currentUser = auth.currentUser // Verifica que el usuario actual esté establecido
             if (currentUser != null) {
                 Log.i(TAG, "Inicio de sesión exitoso para UID: ${currentUser.uid}")
-                // --- IMPORTANTE ---
-                // Ya NO actualizamos UserSession aquí.
-                // La UI debe reaccionar a los cambios en FirebaseAuth.authStateChanges()
-                // o FirebaseAuth.currentUser para obtener el UID y el estado.
-                // Los datos del perfil (nombre, etc.) se obtendrán desde Firestore
-                // usando otro repositorio (ej. UserRepository o ProfileRepository)
-                // una vez que se confirme el login exitoso en el ViewModel/UI.
-                // --------------------
                 LoginResult.Success
             } else {
-                // Caso improbable si await no falló pero currentUser es null
                 Log.e(TAG, "Inicio de sesión pareció exitoso pero currentUser es null.")
                 LoginResult.Failure(LoginError.UNKNOWN)
             }

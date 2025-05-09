@@ -12,9 +12,6 @@ import com.example.sisvitag2.R
 
 val philosopherBold = FontFamily(
     Font(R.font.philosopher_bold, FontWeight.Bold) // Asegúrate que R.font.philosopher_bold exista
-    // Puedes añadir otras variantes si las tienes:
-    // Font(R.font.philosopher_regular, FontWeight.Normal),
-    // Font(R.font.philosopher_italic, FontWeight.Normal, FontStyle.Italic),
 )
 
 val Typography = Typography(

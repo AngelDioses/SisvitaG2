@@ -56,8 +56,6 @@ fun TestScreen(
     }
 }
 
-// TestListContent, TestCard y Previews como te los di antes (ya estaban bien sin paddingValues).
-// ... (Pega aquí el resto de tu código de TestScreen.kt: TestListContent, TestCard, Previews)
 @Composable
 fun TestListContent(
     tests: List<Test>,

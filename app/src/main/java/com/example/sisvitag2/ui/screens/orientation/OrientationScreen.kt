@@ -254,7 +254,6 @@ fun OrientationContent(
                     // Pop hasta el inicio del grafo del rootNavController (AppNavHost)
                     popUpTo(navController.graph.findStartDestination().id) { // <--- CORREGIDO
                         inclusive = false // No quita "Inicio" de la pila de AppNavHost
-                        // Cambia a true si quieres limpiar "Inicio" también.
                     }
                     launchSingleTop = true // Evita múltiples instancias de "Inicio"
                 }

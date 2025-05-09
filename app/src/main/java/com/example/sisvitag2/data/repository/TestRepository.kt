@@ -1,20 +1,19 @@
 package com.example.sisvitag2.data.repository
 
 import android.util.Log
-import com.example.sisvitag2.data.model.Pregunta // Importa modelos adaptados
-import com.example.sisvitag2.data.model.Respuesta // Importa modelos adaptados
-import com.example.sisvitag2.data.model.Test // Importa modelos adaptados
-import com.example.sisvitag2.data.model.TestSubmission // Importa modelos adaptados
+import com.example.sisvitag2.data.model.Pregunta
+import com.example.sisvitag2.data.model.Respuesta
+import com.example.sisvitag2.data.model.Test
+import com.example.sisvitag2.data.model.TestSubmission
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.ktx.toObject // Para deserializar documentos individuales
-import com.google.firebase.firestore.ktx.toObjects // Para deserializar listas de documentos
+import com.google.firebase.firestore.ktx.toObject
+import com.google.firebase.firestore.ktx.toObjects
 import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.tasks.await
 import java.util.concurrent.ConcurrentHashMap
 
 class TestRepository(
-    // Inyecta dependencias (vía Koin)
     private val firestore: FirebaseFirestore,
     private val functions: FirebaseFunctions
 ) {
@@ -29,7 +28,6 @@ class TestRepository(
         private const val SUBMIT_TEST_FUNCTION = "submitTestResults"
     }
 
-    // --- Cachés en memoria (Opcional, pero mantenido del original) ---
     // Firestore tiene caché offline, pero esto evita lecturas repetidas en la misma sesión.
     // Usar ConcurrentHashMap para seguridad en hilos, aunque con coroutines no es estrictamente necesario.
     @Volatile private var cachedTests: List<Test>? = null
