@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Deshabilitar temporalmente regla 'any' si causa problemas
 // ==========================================================================
 // Cloud Functions para Sisvita Backend Lógico con Firebase
 // ==========================================================================
