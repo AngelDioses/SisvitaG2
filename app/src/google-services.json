@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "291817610837",
+    "project_id": "sisvitag2",
+    "storage_bucket": "sisvitag2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:291817610837:android:cd0be6332bd2b8ecb7bedc",
+        "android_client_info": {
+          "package_name": "com.example.sisvitag2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrV8jbQzunJcilWDPqCpXTJIpLmtQjQV8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
