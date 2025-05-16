@@ -1,4 +1,4 @@
-package com.example.sisvitag2.ui.screens.login // Ajusta paquete
+package com.example.sisvitag2.ui.screens.login
 
 import android.util.Log
 import android.widget.Toast
@@ -14,7 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
+// import androidx.compose.ui.graphics.Color // No se usa explícitamente, MaterialTheme lo maneja
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -28,20 +28,15 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.sisvitag2.R
-import com.example.sisvitag2.ui.screens.login.LoginViewModel
-import com.example.sisvitag2.ui.screens.login.LoginUiState
 import com.example.sisvitag2.data.repository.LoginError
-// Importa Theme y Fuentes
 import com.example.sisvitag2.ui.theme.SisvitaG2Theme
 import com.example.sisvitag2.ui.theme.philosopherBold
-
-import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun LoginScreen(
-    navController: NavController, // Para navegar a Registro
-    onLoginSuccess: () -> Unit // Para notificar éxito y que el padre navegue
+    navController: NavController,
+    onLoginSuccess: () -> Unit = {} // Callback opcional
 ) {
     val viewModel: LoginViewModel = koinViewModel()
     val loginUiState by viewModel.loginUiState.collectAsState()
@@ -52,28 +47,29 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     val passwordFocusRequester = remember { FocusRequester() }
 
-    // Efecto para manejar éxito y error (sin cambios)
     LaunchedEffect(loginUiState) {
         when (val state = loginUiState) {
             is LoginUiState.Success -> {
-                Log.d("LoginScreen", "Login Success UI detected")
-                Toast.makeText(context, "Inicio de sesión exitoso", Toast.LENGTH_SHORT).show()
-                onLoginSuccess()
+                Log.d("LoginScreen", "Login Success UI detectado por LoginScreen")
+                // El Toast de éxito puede ser opcional ya que el usuario será redirigido
+                // Toast.makeText(context, "Inicio de sesión exitoso", Toast.LENGTH_SHORT).show()
+                onLoginSuccess() // Notificar al llamador (AuthNavHost) si es necesario
                 viewModel.resetState()
             }
             is LoginUiState.Error -> {
-                Log.d("LoginScreen", "Login Error UI detected: ${state.errorType}")
                 val errorMessage = when (state.errorType) {
                     LoginError.USER_NOT_FOUND -> "Usuario no encontrado."
                     LoginError.WRONG_PASSWORD -> "Contraseña incorrecta."
                     LoginError.EMPTY_CREDENTIALS -> "Por favor, ingrese correo y contraseña."
                     LoginError.NETWORK_ERROR -> "Error de red. Verifique su conexión."
-                    else -> state.message ?: "Error desconocido."
+                    LoginError.USER_DISABLED -> "Esta cuenta ha sido deshabilitada."
+                    LoginError.INVALID_CREDENTIALS -> "Credenciales inválidas."
+                    else -> state.message ?: "Error desconocido al iniciar sesión."
                 }
                 Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
                 viewModel.resetState()
             }
-            else -> {}
+            else -> { /* No-op para Idle o Loading */ }
         }
     }
 
@@ -87,12 +83,12 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Image( /* ... (Logo sin cambios) ... */
+        Image(
             painter = painterResource(id = R.drawable.ic_sisvita),
             contentDescription = "Logo Sisvita",
             modifier = Modifier.height(150.dp)
         )
-        Text( /* ... (Texto SISVITA sin cambios) ... */
+        Text(
             text = "SISVITA",
             style = TextStyle(
                 fontFamily = philosopherBold,
@@ -102,7 +98,7 @@ fun LoginScreen(
         )
         Spacer(modifier = Modifier.height(32.dp))
 
-        OutlinedTextField( /* ... (Email TextField sin cambios) ... */
+        OutlinedTextField(
             value = email,
             onValueChange = { email = it },
             label = { Text("Correo electrónico") },
@@ -114,7 +110,7 @@ fun LoginScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        OutlinedTextField( /* ... (Password TextField sin cambios) ... */
+        OutlinedTextField(
             value = password,
             onValueChange = { password = it },
             label = { Text("Contraseña") },
@@ -122,13 +118,34 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth().focusRequester(passwordFocusRequester),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(); if (!isLoading) { viewModel.login(email.trim(), password) } }),
+            keyboardActions = KeyboardActions(onDone = {
+                focusManager.clearFocus()
+                if (!isLoading) { viewModel.login(email.trim(), password) }
+            }),
             enabled = !isLoading
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp)) // Reducir espacio antes de "Olvidaste contraseña"
+
+        // ***** MODIFICACIÓN AQUÍ *****
+        Text(
+            text = "¿Olvidaste tu contraseña?",
+            color = MaterialTheme.colorScheme.primary, // O un color más sutil como tertiary
+            fontSize = 14.sp,
+            modifier = Modifier
+                .align(Alignment.End) // Alinea a la derecha
+                .clickable(enabled = !isLoading) {
+                    navController.navigate("ForgotPasswordRoute") // Navega a la pantalla de olvido de contraseña
+                }
+                .padding(vertical = 8.dp) // Añade padding para mejor toque
+        )
+        // ***** FIN DE MODIFICACIÓN *****
+        Spacer(modifier = Modifier.height(16.dp)) // Espacio antes del botón de login
 
         Button(
-            onClick = { focusManager.clearFocus(); if (!isLoading) { viewModel.login(email.trim(), password) } },
+            onClick = {
+                focusManager.clearFocus()
+                if (!isLoading) { viewModel.login(email.trim(), password) }
+            },
             modifier = Modifier.fillMaxWidth().height(48.dp),
             enabled = !isLoading
         ) {
@@ -140,25 +157,23 @@ fun LoginScreen(
         }
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Texto para ir a Registro
         Text(
             text = "¿No tienes una cuenta? Regístrate",
             color = MaterialTheme.colorScheme.primary,
             fontSize = 14.sp,
             modifier = Modifier
                 .clickable(enabled = !isLoading) {
-                    navController.navigate("RegisterRoute") // Usa la ruta definida en AuthNavHost
+                    navController.navigate("RegisterRoute")
                 }
                 .padding(8.dp)
         )
     }
 }
 
-// Preview (sin cambios necesarios aquí)
 @Preview(showBackground = true)
 @Composable
 fun LoginScreenPreview() {
-    SisvitaG2Theme { // Asegúrate que sea tu tema correcto
+    SisvitaG2Theme {
         LoginScreen(
             navController = rememberNavController(),
             onLoginSuccess = {}

@@ -20,11 +20,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost // Para AuthNavHost
-import androidx.navigation.compose.composable // Para AuthNavHost
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.sisvitag2.ui.components.AppScaffoldComponent // TU Scaffold personalizado
-// import com.example.sisvitag2.ui.navigation.AppNavHost // AppNavHost se llama DENTRO de AppScaffoldComponent
+// AppNavHost se llama DENTRO de AppScaffoldComponent, no directamente desde aquí.
+// import com.example.sisvitag2.ui.navigation.AppNavHost
+import com.example.sisvitag2.ui.screens.auth.EmailVerificationScreen
+import com.example.sisvitag2.ui.screens.auth.ForgotPasswordScreen
 import com.example.sisvitag2.ui.screens.login.LoginScreen
 import com.example.sisvitag2.ui.screens.register.RegisterScreen
 import com.example.sisvitag2.ui.theme.SisvitaG2Theme
@@ -76,37 +79,51 @@ fun AuthDecisionRoot() {
             }
         }
         is AuthState.Authenticated -> {
-            val userName by sessionViewModel.userName.collectAsState()
-            // Usuario autenticado: Muestra TU AppScaffoldComponent
-            // AppScaffoldComponent ya se encarga de llamar a AppNavHost en su 'content'
-            AppScaffoldComponent( // <--- LLAMADA A TU AppScaffoldComponent
-                userName = userName ?: "Bienvenido/a",
-                onLogout = { sessionViewModel.signOut() },
-                navController = globalNavController // El NavController que AppScaffold usará para AppNavHost
-            )
-            // El lambda de contenido ya no se pasa aquí porque tu AppScaffoldComponent
-            // lo maneja internamente llamando a AppNavHost.
+            if (!currentAuthState.user.isEmailVerified) {
+                Log.d("AuthDecisionRoot", "Usuario ${currentAuthState.user.email} autenticado PERO correo no verificado. Mostrando AuthNavHost con inicio en EmailVerificationRoute.")
+                AuthNavHost(navController = globalNavController, startDestination = "EmailVerificationRoute")
+            } else {
+                Log.d("AuthDecisionRoot", "Usuario ${currentAuthState.user.email} autenticado Y VERIFICADO. Mostrando AppScaffold.")
+                val userName by sessionViewModel.userName.collectAsState()
+
+                // Llama a AppScaffoldComponent SIN el lambda de contenido final,
+                // porque tu AppScaffoldComponent ya se encarga de mostrar AppNavHost.
+                AppScaffoldComponent(
+                    userName = userName ?: "Bienvenido/a",
+                    onLogout = { sessionViewModel.signOut() },
+                    navController = globalNavController // Este NavController se usa DENTRO de AppScaffoldComponent para su AppNavHost
+                )
+            }
         }
         is AuthState.Unauthenticated -> {
-            AuthNavHost(navController = globalNavController)
+            Log.d("AuthDecisionRoot", "Usuario no autenticado. Mostrando AuthNavHost con inicio en LoginRoute.")
+            AuthNavHost(navController = globalNavController, startDestination = "LoginRoute")
         }
     }
 }
 
+// Grafo de Navegación para Autenticación y Verificación
+// Se muestra cuando el usuario no está logueado o necesita verificar correo.
 @Composable
-fun AuthNavHost(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = "LoginRoute") {
+fun AuthNavHost(navController: NavHostController, startDestination: String = "LoginRoute") {
+    NavHost(navController = navController, startDestination = startDestination) {
         composable("LoginRoute") {
             LoginScreen(
                 navController = navController,
                 onLoginSuccess = {
                     Log.d("AuthNavHost", "LoginScreen reportó éxito.")
-                    // No es necesario navegar explícitamente aquí si AuthDecisionRoot reacciona al cambio de AuthState
+                    // La navegación la maneja AuthDecisionRoot al cambiar el AuthState
                 }
             )
         }
         composable("RegisterRoute") {
             RegisterScreen(navController = navController)
+        }
+        composable("EmailVerificationRoute") {
+            EmailVerificationScreen(navController = navController)
+        }
+        composable("ForgotPasswordRoute") {
+            ForgotPasswordScreen(navController = navController)
         }
     }
 }

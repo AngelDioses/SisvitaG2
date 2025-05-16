@@ -82,5 +82,7 @@ enum class LoginError {
     WRONG_PASSWORD,
     EMPTY_CREDENTIALS,
     NETWORK_ERROR, // Podrías añadir detección específica de red si es necesario
-    UNKNOWN
+    UNKNOWN,
+    USER_DISABLED,
+    INVALID_CREDENTIALS
 }

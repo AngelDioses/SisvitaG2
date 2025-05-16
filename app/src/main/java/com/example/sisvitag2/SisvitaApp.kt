@@ -6,9 +6,8 @@ import com.example.sisvitag2.di.emotionalAnalysisModule
 import com.example.sisvitag2.di.firebaseModule
 import com.example.sisvitag2.di.loginModule
 import com.example.sisvitag2.di.registerModule
-import com.example.sisvitag2.di.sessionModule // IMPORTANTE
+import com.example.sisvitag2.di.sessionModule // Este módulo ahora define los 3 ViewModels de sesión/auth
 import com.example.sisvitag2.di.testModule
-// import com.example.sisvitag2.di.viewModelModule // Si tienes un módulo general de VMs
 
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -24,13 +23,12 @@ class SisvitaApp : Application() {
             androidContext(this@SisvitaApp)
             modules(
                 firebaseModule,
-                sessionModule, // Carga el módulo del SessionViewModel
+                sessionModule, // Ahora este módulo es más completo
                 loginModule,
                 registerModule,
                 testModule,
                 emotionOrientationModule,
                 emotionalAnalysisModule
-                // viewModelModule // Si tienes uno general
             )
         }
     }

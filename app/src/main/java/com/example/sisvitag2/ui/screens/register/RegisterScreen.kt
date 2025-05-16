@@ -1,6 +1,6 @@
 package com.example.sisvitag2.ui.screens.register
 
-import android.util.Log // Asegúrate que este import esté
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,7 +10,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CalendarToday // Asegúrate que esta dependencia esté y el import sea correcto
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,13 +25,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination // Para popUpTo
 import androidx.navigation.compose.rememberNavController
+import androidx.wear.compose.material.ContentAlpha
 import com.example.sisvitag2.ui.theme.SisvitaG2Theme
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-import androidx.navigation.NavGraph.Companion.findStartDestination // Para popUpTo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,7 +57,7 @@ fun RegisterScreen(
     var department by remember { mutableStateOf("") }
     var province by remember { mutableStateOf("") }
     var district by remember { mutableStateOf("") }
-    var birthDate by remember { mutableStateOf("") } // String YYYY-MM-DD
+    var birthDate by remember { mutableStateOf("") } // String en formato YYYY-MM-DD
 
     var isDocumentTypeExpanded by remember { mutableStateOf(false) }
     var isGenderExpanded by remember { mutableStateOf(false) }
@@ -82,10 +83,13 @@ fun RegisterScreen(
         when (val state = registerUiState) {
             is RegisterUiState.Success -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
-                navController.navigate("LoginRoute") { // <- CORREGIDO: Usar string de ruta
+                // ***** MODIFICACIÓN AQUÍ *****
+                // Navegar a la pantalla de verificación de correo en lugar de LoginRoute
+                navController.navigate("EmailVerificationRoute") {
                     popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
                     launchSingleTop = true
                 }
+                // ***** FIN DE MODIFICACIÓN *****
                 viewModel.resetRegisterState()
             }
             is RegisterUiState.Error -> {
@@ -146,18 +150,19 @@ fun RegisterScreen(
             trailingIcon = {
                 IconButton(onClick = { showDatePickerDialog = true }, enabled = !isRegistering) {
                     Icon(
-                        imageVector = Icons.Filled.CalendarToday, // <--- Usar imageVector
+                        imageVector = Icons.Filled.CalendarToday,
                         contentDescription = "Seleccionar fecha"
-                    )                }
+                    )
+                }
             },
             enabled = !isRegistering,
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                disabledTextColor = if(isRegistering) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) else MaterialTheme.colorScheme.onSurface,
-                disabledBorderColor = if(isRegistering) MaterialTheme.colorScheme.outline.copy(alpha = 0.38f) else MaterialTheme.colorScheme.outline,
-                disabledPlaceholderColor = if(isRegistering) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledLabelColor = if(isRegistering) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledTrailingIconColor = if(isRegistering) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f) else MaterialTheme.colorScheme.onSurfaceVariant
+                disabledTextColor = if(isRegistering) MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.disabled) else MaterialTheme.colorScheme.onSurface,
+                disabledBorderColor = if(isRegistering) MaterialTheme.colorScheme.outline.copy(alpha = ContentAlpha.disabled) else MaterialTheme.colorScheme.outline,
+                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.medium),
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.medium),
+                disabledTrailingIconColor = if(isRegistering) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.disabled) else MaterialTheme.colorScheme.onSurfaceVariant
             )
         )
         DropdownInput(label = "Departamento *", selectedValue = department, options = dropdownsState.departments, isLoading = dropdownsState.isLoadingDepartments, expanded = isDepartmentExpanded, onExpandedChange = { isDepartmentExpanded = it }, onValueChange = { department = it; isDepartmentExpanded = false; province = ""; district = ""; viewModel.getProvinces(it) }, modifier = Modifier.fillMaxWidth(), enabled = !isRegistering)
@@ -171,7 +176,7 @@ fun RegisterScreen(
             onClick = {
                 focusManager.clearFocus()
                 if (!isRegistering) {
-                    val formDataForViewModel = mutableMapOf<String, Any>() // CORREGIDO: Iniciar como Map<String, Any>
+                    val formDataForViewModel = mutableMapOf<String, Any>()
                     formDataForViewModel["email_reg"] = email.trim()
                     formDataForViewModel["password_reg"] = password
                     formDataForViewModel["nombre"] = firstName.trim()
@@ -187,7 +192,7 @@ fun RegisterScreen(
                     formDataForViewModel["fechanacimiento_str"] = birthDate
                     formDataForViewModel["role_description"] = "Paciente"
 
-                    viewModel.performRegistration(formDataForViewModel.toMap()) // <- CORREGIDO: Pasar Map<String, Any>
+                    viewModel.performRegistration(formDataForViewModel.toMap())
                 }
             },
             modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -206,7 +211,7 @@ fun RegisterScreen(
             fontSize = 14.sp,
             modifier = Modifier
                 .clickable(enabled = !isRegistering) {
-                    navController.navigate("LoginRoute") { // <- CORREGIDO: Usar string de ruta
+                    navController.navigate("LoginRoute") {
                         popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
                     }
                 }
@@ -216,7 +221,6 @@ fun RegisterScreen(
     }
 }
 
-// DropdownInput (sin cambios respecto a la última versión que te di, que ya manejaba options.isNotEmpty())
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DropdownInput(
@@ -249,7 +253,7 @@ fun DropdownInput(
             expanded = expanded && !isLoading && enabled && options.isNotEmpty(),
             onDismissRequest = { onExpandedChange(false) }
         ) {
-            if (options.isEmpty() && !isLoading) { // Mostrar si no hay opciones y no está cargando
+            if (options.isEmpty() && !isLoading) {
                 DropdownMenuItem(
                     text = { Text("No hay opciones") },
                     onClick = { },
@@ -259,7 +263,10 @@ fun DropdownInput(
                 options.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(option) },
-                        onClick = { onValueChange(option); onExpandedChange(false) }
+                        onClick = {
+                            onValueChange(option)
+                            onExpandedChange(false)
+                        }
                     )
                 }
             }

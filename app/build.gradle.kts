@@ -101,7 +101,8 @@ dependencies {
 
     // --- Kotlinx Serialization ---
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.media3.common.ktx) // <-- Añadida dependencia
+    implementation(libs.androidx.media3.common.ktx)
+    implementation(libs.androidx.compose.material) // <-- Añadida dependencia
     // ---------------------------
 
     // --- Test ---

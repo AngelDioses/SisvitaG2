@@ -37,7 +37,8 @@ navigationCompose = "2.7.7" # Ejemplo, usa una versión estable reciente
 # Kotlinx Serialization JSON Lib
 kotlinxSerializationJson = "1.7.1"
 media3CommonKtx = "1.6.1" # Revisa la última versión (puede ser >= 1.6.3)
-androidxMaterialIconsExtended = "1.6.7" # Reemplaza con la última versión estable compatible
+androidxMaterialIconsExtended = "1.6.7"
+composeMaterial = "1.4.1" # Reemplaza con la última versión estable compatible
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -96,6 +97,7 @@ androidx-media3-common-ktx = { group = "androidx.media3", name = "media3-common-
 # ---------------------------
 
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "androidxMaterialIconsExtended" }
+androidx-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "composeMaterial" }
 
 
 [plugins]
