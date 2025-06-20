@@ -5,12 +5,13 @@ import com.example.sisvitag2.di.accountModule
 import com.example.sisvitag2.di.emotionOrientationModule
 import com.example.sisvitag2.di.emotionalAnalysisModule
 import com.example.sisvitag2.di.firebaseModule
-import com.example.sisvitag2.di.loginModule
+import com.example.sisvitag2.di.loginModule 
 import com.example.sisvitag2.di.registerModule
 import com.example.sisvitag2.di.sessionModule // Este módulo ahora define los 3 ViewModels de sesión/auth
 import com.example.sisvitag2.di.testModule
 import kotlinx.coroutines.DEBUG_PROPERTY_NAME
 import kotlinx.coroutines.DEBUG_PROPERTY_VALUE_ON
+
 
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger

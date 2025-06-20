@@ -1,4 +1,5 @@
 
+
 // ==========================================================================
 // Cloud Functions para Sisvita Backend Lógico con Firebase
 // ==========================================================================
@@ -46,10 +47,13 @@ interface OrientationRequestData {
   emociones?: { [key: string]: number };
 }
 
-
-// ==========================================================================
+// =======================================================================================================  
+// =======================================================================================================  
+// ======================================================================================================= 
 // 1. Cloud Function: submitTestResults (HTTPS Callable)
-// ==========================================================================
+// =======================================================================================================  
+// =======================================================================================================  
+// ======================================================================================================= 
 export const submitTestResults = functions.https.onCall(
     async (request: CallableRequest<SubmitTestData>) => {
       logger.info("submitTestResults: Ejecución iniciada.", {structuredData: true});
@@ -202,9 +206,13 @@ export const submitTestResults = functions.https.onCall(
       }
     });
 
-// ==========================================================================
+// =======================================================================================================  
+// =======================================================================================================  
+// ======================================================================================================= 
 // 2. Cloud Function: generarRespuestaEmocional (HTTPS Callable)
-// ==========================================================================
+// =======================================================================================================  
+// =======================================================================================================  
+// ======================================================================================================= 
 export const generarRespuestaEmocional = functions.https.onCall(
     async (request: CallableRequest<OrientationRequestData>) => {
       logger.info("generarRespuestaEmocional: Iniciando.", {structuredData: true});
@@ -357,3 +365,251 @@ export const processUploadedVideo = onObjectFinalized(
         }
       }
     }); 
+
+
+  
+// =======================================================================================================
+// =======================================================================================================  
+// =======================================================================================================  
+// 4. Cloud Function: createUserProfile (HTTPS Callable)  
+// =======================================================================================================  
+// =======================================================================================================  
+// =======================================================================================================  
+
+export const createUserProfile = functions.https.onCall(  
+    async (request: CallableRequest<UserRegistrationData>) => {  
+      logger.info("createUserProfile: Ejecución iniciada.", {structuredData: true});  
+      const functionStartTime = Date.now();  
+  
+      // 1. Validar Datos de Entrada  
+      const data = request.data;  
+      logger.log("createUserProfile: Datos recibidos:", data);  
+  
+      // Validaciones básicas  
+      if (!data.email || !data.password || !data.firstName || !data.lastName ||   
+          !data.documentType || !data.documentNumber || !data.gender || !data.birthDate) {  
+        logger.error("createUserProfile: Datos obligatorios faltantes.");  
+        throw new HttpsError("invalid-argument", "Faltan datos obligatorios para el registro.");  
+      }  
+  
+      // Validar formato de email  
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;  
+      if (!emailRegex.test(data.email)) {  
+        throw new HttpsError("invalid-argument", "Formato de email inválido.");  
+      }  
+  
+      // Validar mayoría de edad  
+      const birthDate = new Date(data.birthDate);  
+      const today = new Date();  
+      const age = today.getFullYear() - birthDate.getFullYear();  
+      if (age < 18) {  
+        throw new HttpsError("invalid-argument", "Debe ser mayor de 18 años para registrarse.");  
+      }  
+  
+      try {  
+        // 2. Crear usuario en Firebase Authentication  
+        logger.info("createUserProfile: Creando usuario en Firebase Auth...");  
+        const userRecord = await admin.auth().createUser({  
+          email: data.email,  
+          password: data.password,  
+          displayName: `${data.firstName} ${data.lastName}`,  
+        });  
+          
+        const userId = userRecord.uid;  
+        logger.info(`createUserProfile: Usuario creado en Auth: ${userId}`);  
+  
+        // 3. Buscar tipousuarioid para "Paciente"  
+        const tipoUsuarioQuery = await db.collection("tiposUsuario")  
+            .where("descripcion", "==", "Paciente")  
+            .limit(1)  
+            .get();  
+          
+        let tipousuarioid = null;  
+        if (!tipoUsuarioQuery.empty) {  
+          tipousuarioid = tipoUsuarioQuery.docs[0].id;  
+        } else {  
+          logger.warn("createUserProfile: No se encontró tipo de usuario 'Paciente'");  
+        }  
+  
+        // 4. Buscar IDs de referencia (género, tipo documento, ubicación)  
+        const [genderDoc, docTypeDoc, ubicacionDoc] = await Promise.all([  
+          db.collection("generos").where("descripcion", "==", data.gender).limit(1).get(),  
+          db.collection("tiposDocumento").where("descripcion", "==", data.documentType).limit(1).get(),  
+          data.ubicacion ? db.collection("ubicaciones").where("descripcion", "==", data.ubicacion).limit(1).get() : null  
+        ]);  
+  
+        const generoid = !genderDoc.empty ? genderDoc.docs[0].id : null;  
+        const tipodocumentoid = !docTypeDoc.empty ? docTypeDoc.docs[0].id : null;  
+        const ubicacionid = ubicacionDoc && !ubicacionDoc.empty ? ubicacionDoc.docs[0].id : null;  
+  
+        // 5. Guardar datos en Firestore usando transacción  
+        logger.info("createUserProfile: Iniciando transacción para guardar datos...");  
+        await db.runTransaction(async (transaction) => {  
+          const timestampActual = Timestamp.now();  
+            
+          // Crear documento en colección 'personas'  
+          const personaRef = db.collection("personas").doc(userId);  
+          transaction.set(personaRef, {  
+            nombres: data.firstName,  
+            apellidoPaterno: data.lastName,  
+            apellidoMaterno: data.middleName || "",  
+            fechaNacimiento: data.birthDate,  
+            telefono: data.phone || "",  
+            correo: data.email,  
+            numeroDocumento: data.documentNumber,  
+            generoid: generoid,  
+            tipodocumentoid: tipodocumentoid,  
+            ubicacionid: ubicacionid,  
+            fechaCreacion: timestampActual,  
+            activo: true  
+          });  
+  
+          // Crear documento en colección 'usuarios'  
+          const usuarioRef = db.collection("usuarios").doc(userId);  
+          transaction.set(usuarioRef, {  
+            personaId: userId,  
+            tipousuarioid: tipousuarioid,  
+            fechaCreacion: timestampActual,  
+            emailVerificado: false,  
+            activo: true  
+          });  
+  
+          logger.info(`createUserProfile: Transacción preparada para usuario ${userId}`);  
+        });  
+  
+        // 6. Enviar email de verificación  
+        logger.info("createUserProfile: Enviando email de verificación...");  
+        await admin.auth().generateEmailVerificationLink(data.email);  
+  
+        // 7. Devolver resultado exitoso  
+        const executionTime = Date.now() - functionStartTime;  
+        logger.info(`createUserProfile: Finalizada OK en ${executionTime} ms.`);  
+          
+        return {  
+          success: true,  
+          userId: userId,  
+          message: "Usuario registrado exitosamente. Revisa tu correo para verificar tu cuenta.",  
+        };  
+  
+      } catch (error: any) {  
+        logger.error("createUserProfile: Error en ejecución:", error);  
+          
+        // Si el error es de Firebase Auth, manejarlo específicamente  
+        if (error.code === 'auth/email-already-exists') {  
+          throw new HttpsError("already-exists", "Ya existe una cuenta con este correo electrónico.");  
+        } else if (error.code === 'auth/weak-password') {  
+          throw new HttpsError("invalid-argument", "La contraseña es muy débil.");  
+        }  
+          
+        if (error instanceof HttpsError) {  
+          throw error;  
+        }  
+        throw new HttpsError("internal", error.message || "Error interno al crear el perfil de usuario.");  
+      }  
+    });
+
+
+// =======================================================================================================  
+// =======================================================================================================  
+// =======================================================================================================  
+// 5. Cloud Function: updateUserProfile (HTTPS Callable)  
+// =======================================================================================================  
+// =======================================================================================================  
+// ======================================================================================================= 
+// Función en la nube que permite actualizar el perfil de un usuario autenticado
+export const updateUserProfile = functions.https.onCall(  
+  async (request: CallableRequest<ProfileUpdateData>) => {  
+    logger.info("updateUserProfile: Ejecución iniciada.", { structuredData: true });  
+    const functionStartTime = Date.now();  
+  
+    // 1. Validar que el usuario esté autenticado
+    if (!request.auth) {  
+      logger.error("updateUserProfile: Error - No autenticado.");  
+      throw new HttpsError("unauthenticated", "Autenticación requerida.");  
+    }  
+    const userId = request.auth.uid;  
+    logger.log("updateUserProfile: Usuario autenticado:", userId);  
+  
+    // 2. Extraer y validar los datos recibidos desde el cliente
+    const data = request.data;  
+    logger.log("updateUserProfile: Datos recibidos:", data);  
+  
+    // Verifica que al menos uno de los campos esperados esté presente
+    if (!data.firstName && !data.lastName && !data.middleName && !data.phone && !data.ubicacion) {  
+      throw new HttpsError("invalid-argument", "No se proporcionaron datos para actualizar.");  
+    }  
+  
+    try {  
+      // 3. Verificar que el documento del usuario existe en la colección 'personas'
+      const personaRef = db.collection("personas").doc(userId);  
+      const personaDoc = await personaRef.get();  
+        
+      if (!personaDoc.exists) {  
+        throw new HttpsError("not-found", "Perfil de usuario no encontrado.");  
+      }  
+  
+      // 4. Preparar objeto con los campos a actualizar
+      const updateData: any = {  
+        fechaModificacion: Timestamp.now()  // Siempre se actualiza la fecha de modificación
+      };  
+  
+      // Agregar campos si fueron proporcionados
+      if (data.firstName) updateData.nombres = data.firstName;  
+      if (data.lastName) updateData.apellidoPaterno = data.lastName;  
+      if (data.middleName !== undefined) updateData.apellidoMaterno = data.middleName;  
+      if (data.phone !== undefined) updateData.telefono = data.phone;  
+  
+      // 5. Si se proporciona una ubicación, buscar su ID correspondiente
+      let ubicacionid = null;  
+      if (data.ubicacion) {  
+        const ubicacionQuery = await db.collection("ubicaciones")  
+            .where("descripcion", "==", data.ubicacion)  
+            .limit(1)  
+            .get();  
+          
+        if (!ubicacionQuery.empty) {  
+          ubicacionid = ubicacionQuery.docs[0].id;  
+          updateData.ubicacionid = ubicacionid;  
+        } else {  
+          logger.warn(`updateUserProfile: Ubicación '${data.ubicacion}' no encontrada`);  
+        }  
+      }  
+  
+      // 6. Ejecutar la actualización dentro de una transacción para asegurar consistencia
+      logger.info("updateUserProfile: Iniciando transacción para actualizar datos...");  
+      await db.runTransaction(async (transaction) => {  
+        transaction.update(personaRef, updateData);  
+        logger.info(`updateUserProfile: Transacción preparada para usuario ${userId}`);  
+      });  
+  
+      // 7. Si cambió el nombre o apellido, actualizar también el displayName en Firebase Auth
+      if (data.firstName || data.lastName) {  
+        const currentPersonaData = personaDoc.data();  
+        const newDisplayName = `${data.firstName || currentPersonaData?.nombres} ${data.lastName || currentPersonaData?.apellidoPaterno}`;  
+          
+        await admin.auth().updateUser(userId, {  
+          displayName: newDisplayName  
+        });  
+        logger.info(`updateUserProfile: DisplayName actualizado: ${newDisplayName}`);  
+      }  
+  
+      // 8. Retornar respuesta exitosa incluyendo los campos actualizados (excepto la fecha)
+      const executionTime = Date.now() - functionStartTime;  
+      logger.info(`updateUserProfile: Finalizada OK en ${executionTime} ms.`);  
+        
+      return {  
+        success: true,  
+        message: "Perfil actualizado exitosamente.",  
+        updatedFields: Object.keys(updateData).filter(key => key !== 'fechaModificacion')  
+      };  
+  
+    } catch (error: any) {  
+      // 9. Manejo de errores y logging
+      logger.error("updateUserProfile: Error en ejecución:", error);  
+      if (error instanceof HttpsError) {  
+        throw error;  
+      }  
+      throw new HttpsError("internal", error.message || "Error interno al actualizar el perfil.");  
+    }  
+  }
+);
