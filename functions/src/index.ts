@@ -498,3 +498,104 @@ export const createUserProfile = functions.https.onCall(
       }  
     });
 
+
+
+
+// ==========================================================================  
+// 5. Cloud Function: updateUserProfile (HTTPS Callable)  
+// ==========================================================================  
+export const updateUserProfile = functions.https.onCall(  
+    async (request: CallableRequest<ProfileUpdateData>) => {  
+      logger.info("updateUserProfile: Ejecución iniciada.", {structuredData: true});  
+      const functionStartTime = Date.now();  
+  
+      // 1. Validar Autenticación  
+      if (!request.auth) {  
+        logger.error("updateUserProfile: Error - No autenticado.");  
+        throw new HttpsError("unauthenticated", "Autenticación requerida.");  
+      }  
+      const userId = request.auth.uid;  
+      logger.log("updateUserProfile: Usuario autenticado:", userId);  
+  
+      // 2. Validar y Extraer Datos de Entrada  
+      const data = request.data;  
+      logger.log("updateUserProfile: Datos recibidos:", data);  
+  
+      // Verificar que al menos un campo esté presente para actualizar  
+      if (!data.firstName && !data.lastName && !data.middleName && !data.phone && !data.ubicacion) {  
+        throw new HttpsError("invalid-argument", "No se proporcionaron datos para actualizar.");  
+      }  
+  
+      try {  
+        // 3. Verificar que el documento del usuario existe  
+        const personaRef = db.collection("personas").doc(userId);  
+        const personaDoc = await personaRef.get();  
+          
+        if (!personaDoc.exists) {  
+          throw new HttpsError("not-found", "Perfil de usuario no encontrado.");  
+        }  
+  
+        // 4. Preparar datos para actualización  
+        const updateData: any = {  
+          fechaModificacion: Timestamp.now()  
+        };  
+  
+        if (data.firstName) updateData.nombres = data.firstName;  
+        if (data.lastName) updateData.apellidoPaterno = data.lastName;  
+        if (data.middleName !== undefined) updateData.apellidoMaterno = data.middleName;  
+        if (data.phone !== undefined) updateData.telefono = data.phone;  
+  
+        // 5. Buscar ubicacionid si se proporciona ubicación  
+        let ubicacionid = null;  
+        if (data.ubicacion) {  
+          const ubicacionQuery = await db.collection("ubicaciones")  
+              .where("descripcion", "==", data.ubicacion)  
+              .limit(1)  
+              .get();  
+            
+          if (!ubicacionQuery.empty) {  
+            ubicacionid = ubicacionQuery.docs[0].id;  
+            updateData.ubicacionid = ubicacionid;  
+          } else {  
+            logger.warn(`updateUserProfile: Ubicación '${data.ubicacion}' no encontrada`);  
+          }  
+        }  
+  
+        // 6. Actualizar datos en Firestore y Firebase Auth en transacción  
+        logger.info("updateUserProfile: Iniciando transacción para actualizar datos...");  
+        await db.runTransaction(async (transaction) => {  
+          // Actualizar documento en 'personas'  
+          transaction.update(personaRef, updateData);  
+            
+          logger.info(`updateUserProfile: Transacción preparada para usuario ${userId}`);  
+        });  
+  
+        // 7. Actualizar displayName en Firebase Auth si cambió el nombre  
+        if (data.firstName || data.lastName) {  
+          const currentPersonaData = personaDoc.data();  
+          const newDisplayName = `${data.firstName || currentPersonaData?.nombres} ${data.lastName || currentPersonaData?.apellidoPaterno}`;  
+            
+          await admin.auth().updateUser(userId, {  
+            displayName: newDisplayName  
+          });  
+          logger.info(`updateUserProfile: DisplayName actualizado: ${newDisplayName}`);  
+        }  
+  
+        // 8. Devolver resultado exitoso  
+        const executionTime = Date.now() - functionStartTime;  
+        logger.info(`updateUserProfile: Finalizada OK en ${executionTime} ms.`);  
+          
+        return {  
+          success: true,  
+          message: "Perfil actualizado exitosamente.",  
+          updatedFields: Object.keys(updateData).filter(key => key !== 'fechaModificacion')  
+        };  
+  
+      } catch (error: any) {  
+        logger.error("updateUserProfile: Error en ejecución:", error);  
+        if (error instanceof HttpsError) {  
+          throw error;  
+        }  
+        throw new HttpsError("internal", error.message || "Error interno al actualizar el perfil.");  
+      }  
+    });
