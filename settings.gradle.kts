@@ -16,10 +16,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven { url = uri("https://jitpack.io") } // <-- Añadir para JitPack
     }
 }
 
-rootProject.name = "SisvitaG2"
+rootProject.name = "FinalMovilesPrueba"
 include(":app")
  
