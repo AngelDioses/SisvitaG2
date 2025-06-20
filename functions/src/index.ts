@@ -47,10 +47,13 @@ interface OrientationRequestData {
   emociones?: { [key: string]: number };
 }
 
-
-// ==========================================================================
+// =======================================================================================================  
+// =======================================================================================================  
+// ======================================================================================================= 
 // 1. Cloud Function: submitTestResults (HTTPS Callable)
-// ==========================================================================
+// =======================================================================================================  
+// =======================================================================================================  
+// ======================================================================================================= 
 export const submitTestResults = functions.https.onCall(
     async (request: CallableRequest<SubmitTestData>) => {
       logger.info("submitTestResults: Ejecución iniciada.", {structuredData: true});
@@ -203,9 +206,13 @@ export const submitTestResults = functions.https.onCall(
       }
     });
 
-// ==========================================================================
+// =======================================================================================================  
+// =======================================================================================================  
+// ======================================================================================================= 
 // 2. Cloud Function: generarRespuestaEmocional (HTTPS Callable)
-// ==========================================================================
+// =======================================================================================================  
+// =======================================================================================================  
+// ======================================================================================================= 
 export const generarRespuestaEmocional = functions.https.onCall(
     async (request: CallableRequest<OrientationRequestData>) => {
       logger.info("generarRespuestaEmocional: Iniciando.", {structuredData: true});
@@ -361,11 +368,14 @@ export const processUploadedVideo = onObjectFinalized(
 
 
   
-
-
-// ==========================================================================  
+// =======================================================================================================
+// =======================================================================================================  
+// =======================================================================================================  
 // 4. Cloud Function: createUserProfile (HTTPS Callable)  
-// ==========================================================================  
+// =======================================================================================================  
+// =======================================================================================================  
+// =======================================================================================================  
+
 export const createUserProfile = functions.https.onCall(  
     async (request: CallableRequest<UserRegistrationData>) => {  
       logger.info("createUserProfile: Ejecución iniciada.", {structuredData: true});  
@@ -499,103 +509,107 @@ export const createUserProfile = functions.https.onCall(
     });
 
 
-
-
-// ==========================================================================  
+// =======================================================================================================  
+// =======================================================================================================  
+// =======================================================================================================  
 // 5. Cloud Function: updateUserProfile (HTTPS Callable)  
-// ==========================================================================  
+// =======================================================================================================  
+// =======================================================================================================  
+// ======================================================================================================= 
+// Función en la nube que permite actualizar el perfil de un usuario autenticado
 export const updateUserProfile = functions.https.onCall(  
-    async (request: CallableRequest<ProfileUpdateData>) => {  
-      logger.info("updateUserProfile: Ejecución iniciada.", {structuredData: true});  
-      const functionStartTime = Date.now();  
+  async (request: CallableRequest<ProfileUpdateData>) => {  
+    logger.info("updateUserProfile: Ejecución iniciada.", { structuredData: true });  
+    const functionStartTime = Date.now();  
   
-      // 1. Validar Autenticación  
-      if (!request.auth) {  
-        logger.error("updateUserProfile: Error - No autenticado.");  
-        throw new HttpsError("unauthenticated", "Autenticación requerida.");  
+    // 1. Validar que el usuario esté autenticado
+    if (!request.auth) {  
+      logger.error("updateUserProfile: Error - No autenticado.");  
+      throw new HttpsError("unauthenticated", "Autenticación requerida.");  
+    }  
+    const userId = request.auth.uid;  
+    logger.log("updateUserProfile: Usuario autenticado:", userId);  
+  
+    // 2. Extraer y validar los datos recibidos desde el cliente
+    const data = request.data;  
+    logger.log("updateUserProfile: Datos recibidos:", data);  
+  
+    // Verifica que al menos uno de los campos esperados esté presente
+    if (!data.firstName && !data.lastName && !data.middleName && !data.phone && !data.ubicacion) {  
+      throw new HttpsError("invalid-argument", "No se proporcionaron datos para actualizar.");  
+    }  
+  
+    try {  
+      // 3. Verificar que el documento del usuario existe en la colección 'personas'
+      const personaRef = db.collection("personas").doc(userId);  
+      const personaDoc = await personaRef.get();  
+        
+      if (!personaDoc.exists) {  
+        throw new HttpsError("not-found", "Perfil de usuario no encontrado.");  
       }  
-      const userId = request.auth.uid;  
-      logger.log("updateUserProfile: Usuario autenticado:", userId);  
   
-      // 2. Validar y Extraer Datos de Entrada  
-      const data = request.data;  
-      logger.log("updateUserProfile: Datos recibidos:", data);  
+      // 4. Preparar objeto con los campos a actualizar
+      const updateData: any = {  
+        fechaModificacion: Timestamp.now()  // Siempre se actualiza la fecha de modificación
+      };  
   
-      // Verificar que al menos un campo esté presente para actualizar  
-      if (!data.firstName && !data.lastName && !data.middleName && !data.phone && !data.ubicacion) {  
-        throw new HttpsError("invalid-argument", "No se proporcionaron datos para actualizar.");  
-      }  
+      // Agregar campos si fueron proporcionados
+      if (data.firstName) updateData.nombres = data.firstName;  
+      if (data.lastName) updateData.apellidoPaterno = data.lastName;  
+      if (data.middleName !== undefined) updateData.apellidoMaterno = data.middleName;  
+      if (data.phone !== undefined) updateData.telefono = data.phone;  
   
-      try {  
-        // 3. Verificar que el documento del usuario existe  
-        const personaRef = db.collection("personas").doc(userId);  
-        const personaDoc = await personaRef.get();  
+      // 5. Si se proporciona una ubicación, buscar su ID correspondiente
+      let ubicacionid = null;  
+      if (data.ubicacion) {  
+        const ubicacionQuery = await db.collection("ubicaciones")  
+            .where("descripcion", "==", data.ubicacion)  
+            .limit(1)  
+            .get();  
           
-        if (!personaDoc.exists) {  
-          throw new HttpsError("not-found", "Perfil de usuario no encontrado.");  
+        if (!ubicacionQuery.empty) {  
+          ubicacionid = ubicacionQuery.docs[0].id;  
+          updateData.ubicacionid = ubicacionid;  
+        } else {  
+          logger.warn(`updateUserProfile: Ubicación '${data.ubicacion}' no encontrada`);  
         }  
+      }  
   
-        // 4. Preparar datos para actualización  
-        const updateData: any = {  
-          fechaModificacion: Timestamp.now()  
-        };  
+      // 6. Ejecutar la actualización dentro de una transacción para asegurar consistencia
+      logger.info("updateUserProfile: Iniciando transacción para actualizar datos...");  
+      await db.runTransaction(async (transaction) => {  
+        transaction.update(personaRef, updateData);  
+        logger.info(`updateUserProfile: Transacción preparada para usuario ${userId}`);  
+      });  
   
-        if (data.firstName) updateData.nombres = data.firstName;  
-        if (data.lastName) updateData.apellidoPaterno = data.lastName;  
-        if (data.middleName !== undefined) updateData.apellidoMaterno = data.middleName;  
-        if (data.phone !== undefined) updateData.telefono = data.phone;  
-  
-        // 5. Buscar ubicacionid si se proporciona ubicación  
-        let ubicacionid = null;  
-        if (data.ubicacion) {  
-          const ubicacionQuery = await db.collection("ubicaciones")  
-              .where("descripcion", "==", data.ubicacion)  
-              .limit(1)  
-              .get();  
-            
-          if (!ubicacionQuery.empty) {  
-            ubicacionid = ubicacionQuery.docs[0].id;  
-            updateData.ubicacionid = ubicacionid;  
-          } else {  
-            logger.warn(`updateUserProfile: Ubicación '${data.ubicacion}' no encontrada`);  
-          }  
-        }  
-  
-        // 6. Actualizar datos en Firestore y Firebase Auth en transacción  
-        logger.info("updateUserProfile: Iniciando transacción para actualizar datos...");  
-        await db.runTransaction(async (transaction) => {  
-          // Actualizar documento en 'personas'  
-          transaction.update(personaRef, updateData);  
-            
-          logger.info(`updateUserProfile: Transacción preparada para usuario ${userId}`);  
+      // 7. Si cambió el nombre o apellido, actualizar también el displayName en Firebase Auth
+      if (data.firstName || data.lastName) {  
+        const currentPersonaData = personaDoc.data();  
+        const newDisplayName = `${data.firstName || currentPersonaData?.nombres} ${data.lastName || currentPersonaData?.apellidoPaterno}`;  
+          
+        await admin.auth().updateUser(userId, {  
+          displayName: newDisplayName  
         });  
-  
-        // 7. Actualizar displayName en Firebase Auth si cambió el nombre  
-        if (data.firstName || data.lastName) {  
-          const currentPersonaData = personaDoc.data();  
-          const newDisplayName = `${data.firstName || currentPersonaData?.nombres} ${data.lastName || currentPersonaData?.apellidoPaterno}`;  
-            
-          await admin.auth().updateUser(userId, {  
-            displayName: newDisplayName  
-          });  
-          logger.info(`updateUserProfile: DisplayName actualizado: ${newDisplayName}`);  
-        }  
-  
-        // 8. Devolver resultado exitoso  
-        const executionTime = Date.now() - functionStartTime;  
-        logger.info(`updateUserProfile: Finalizada OK en ${executionTime} ms.`);  
-          
-        return {  
-          success: true,  
-          message: "Perfil actualizado exitosamente.",  
-          updatedFields: Object.keys(updateData).filter(key => key !== 'fechaModificacion')  
-        };  
-  
-      } catch (error: any) {  
-        logger.error("updateUserProfile: Error en ejecución:", error);  
-        if (error instanceof HttpsError) {  
-          throw error;  
-        }  
-        throw new HttpsError("internal", error.message || "Error interno al actualizar el perfil.");  
+        logger.info(`updateUserProfile: DisplayName actualizado: ${newDisplayName}`);  
       }  
-    });
+  
+      // 8. Retornar respuesta exitosa incluyendo los campos actualizados (excepto la fecha)
+      const executionTime = Date.now() - functionStartTime;  
+      logger.info(`updateUserProfile: Finalizada OK en ${executionTime} ms.`);  
+        
+      return {  
+        success: true,  
+        message: "Perfil actualizado exitosamente.",  
+        updatedFields: Object.keys(updateData).filter(key => key !== 'fechaModificacion')  
+      };  
+  
+    } catch (error: any) {  
+      // 9. Manejo de errores y logging
+      logger.error("updateUserProfile: Error en ejecución:", error);  
+      if (error instanceof HttpsError) {  
+        throw error;  
+      }  
+      throw new HttpsError("internal", error.message || "Error interno al actualizar el perfil.");  
+    }  
+  }
+);
