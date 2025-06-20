@@ -1,53 +1,55 @@
 [versions]
-agp = "8.5.0" # Generalmente compatible con Kotlin 2.1.0, verifica notas de AGP
-kotlin = "2.1.0" # Tu versión de Kotlin
-# --- VERSIÓN SERIALIZATION (Alineada con Kotlin) ---
-kotlinSerialization = "2.1.0"
-# -------------------------------------------------
+agp = "8.9.1"
+kotlin = "2.1.0"
+kotlinSerialization = "2.1.0" # Asegúrate que tu plugin de Kotlin en build.gradle (project) coincida
+
 coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
-lifecycleRuntimeKtx = "2.8.3"
-lifecycleViewmodelCompose = "2.8.3"
-activityCompose = "1.9.0"
-composeBom = "2024.06.00" # Verifica si hay una BOM más nueva recomendada para Kotlin 2.1.0
 
+# --- AJUSTES CRÍTICOS AQUÍ ---
+composeBom = "2024.02.02" # BAJAMOS LA VERSIÓN DE LA BOM
+# Esta BOM debería ser compatible con AGP 8.5.0
+
+# Las versiones de Lifecycle y Activity Compose deberían ser manejadas por la BOM.
+# Si después de esto sigues con problemas de AGP para lifecycle,
+# puedes descomentar las siguientes líneas y usar versiones como 2.6.2.
+# androidxLifecycle = "2.6.2"
+activityCompose = "1.10.1"
+
+# Navigation Compose, la BOM 2024.02.02 debería usar una versión compatible.
+navigationCompose = "2.7.7" # Última estable, la BOM podría ajustarla
+# ---------------------------
+
+coilCompose = "2.6.0"
 audioWaveform = "1.1.0"
-# Firebase
-firebaseBom = "33.2.0" # Revisa la última versión de Firebase BOM
-googleGmsGoogleServices = "4.4.2" # Revisa la última versión
-
-# Koin
-koin = "3.5.6" # Revisa la última versión
-
-# Coroutines Play Services
-kotlinxCoroutinesPlayServices = "1.8.1" # Revisa la última versión
-
-# Lottie
-lottie = "6.4.1" # Revisa la última versión
-
-# CameraX
-camerax = "1.3.4" # Revisa la última versión
-
-# Navigation (Ya las tenías, las muevo aquí para agrupar)
-navigationCompose = "2.7.7" # Ejemplo, usa una versión estable reciente
-# navigationRuntimeKtx = "2.7.7" # Versión consistente (runtime-ktx en lugar de runtime-android?)
-
-# Kotlinx Serialization JSON Lib
-kotlinxSerializationJson = "1.7.1"
-media3CommonKtx = "1.6.1" # Revisa la última versión (puede ser >= 1.6.3)
+firebaseBom = "33.1.0" # Usando una versión un poco anterior a la 33.2.0 por si acaso
+googleGmsGoogleServices = "4.4.2"
+koin = "3.5.6"
+kotlinxCoroutinesPlayServices = "1.8.1"
+lottie = "6.4.1"
+camerax = "1.3.4"
+kotlinxSerializationJson = "1.6.3"
+media3CommonKtx = "1.7.1"
 androidxMaterialIconsExtended = "1.6.7"
-composeMaterial = "1.4.1" # Reemplaza con la última versión estable compatible
+# volley = "1.2.1" # Comentado - ¿Lo necesitas?
+# roomRuntimeAndroid = "2.7.1" # Comentado - ¿Lo necesitas?
+
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
-androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
-androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelCompose" }
-androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+
+# Lifecycle - La BOM de Compose debería gestionar estas.
+# Si hay problemas, puedes añadir version.ref = "androidxLifecycle" después de descomentar la versión arriba.
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx" }
+androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose" } # version.ref = "activityCompose" }
+
+# Compose
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
@@ -56,13 +58,15 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core"} # Necesario para Icons.Filled.*
+androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "androidxMaterialIconsExtended" }
 
 
 audiowaveform = { group = "com.github.lincollincol", name = "compose-audiowaveform", version.ref = "audioWaveform" }
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coilCompose" }
+coil-gif = { group = "io.coil-kt", name = "coil-gif", version.ref = "coilCompose" } # Opcional
 
-
-
-# Firebase
+# Firebase (la BOM de Firebase maneja versiones de los ktx)
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
@@ -73,10 +77,7 @@ firebase-functions-ktx = { group = "com.google.firebase", name = "firebase-funct
 koin-android = { group = "io.insert-koin", name = "koin-android", version.ref = "koin" }
 koin-androidx-compose = { group = "io.insert-koin", name = "koin-androidx-compose", version.ref = "koin" }
 
-# Coroutines Play Services
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutinesPlayServices"}
-
-# Lottie
 lottie-compose = { group = "com.airbnb.android", name = "lottie-compose", version.ref = "lottie" }
 
 # CameraX
@@ -86,25 +87,21 @@ androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycl
 androidx-camera-video = { group = "androidx.camera", name = "camera-video", version.ref = "camerax" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 
-# Navigation (Usar ktx es más idiomático con Kotlin)
-# androidx-navigation-runtime-android = { group = "androidx.navigation", name = "navigation-runtime-android", version.ref = "navigationCompose" } # Cambiado abajo
+# Navigation
 androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navigation-runtime-ktx", version.ref = "navigationCompose" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 
-# --- LIBRERÍA SERIALIZATION ---
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 androidx-media3-common-ktx = { group = "androidx.media3", name = "media3-common-ktx", version.ref = "media3CommonKtx" }
-# ---------------------------
 
-androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "androidxMaterialIconsExtended" }
-androidx-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "composeMaterial" }
+# --- LÍNEAS COMENTADAS O ELIMINADAS ---
+# volley = { group = "com.android.volley", name = "volley", version.ref = "volley" } # Si no la usas...
+# androidx-room-runtime-android = { group = "androidx.room", name = "room-runtime-android", version.ref = "roomRuntimeAndroid" } # Si no usas Room...
 
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" } # Vinculado a la versión de Kotlin
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }
-# --- PLUGIN SERIALIZATION ---
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlinSerialization" }
-# --------------------------

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -62,28 +63,50 @@ class SessionViewModel(
     }
 
     private fun fetchUserNameData(user: FirebaseUser) {
+        // Primero intenta obtener el displayName de Firebase Auth, que debería
+        // haberse actualizado durante el registro si esa operación tuvo éxito.
         if (!user.displayName.isNullOrBlank()) {
             _userName.value = user.displayName
             Log.d("SessionViewModel", "Nombre obtenido de Auth displayName: ${user.displayName}")
             return
         }
-        Log.d("SessionViewModel", "displayName nulo o vacío. Intentando obtener nombre de Firestore para UID: ${user.uid}")
+
+        // Si displayName es nulo o vacío, intenta leer de Firestore desde la colección "usuarios"
+        Log.d("SessionViewModel", "displayName nulo/vacío en Auth. Intentando obtener nombre de Firestore 'usuarios' para UID: ${user.uid}")
         viewModelScope.launch {
             try {
-                val personDoc = firestore.collection("personas").document(user.uid).get().await()
-                if (personDoc.exists()) {
-                    val nombre = personDoc.getString("nombre") ?: ""
-                    val apellido = personDoc.getString("apellidopaterno") ?: ""
+                // ***** MODIFICACIÓN AQUÍ *****
+                val userDocument = firestore.collection("usuarios").document(user.uid).get().await()
+                // ***** FIN DE MODIFICACIÓN *****
+
+                if (userDocument.exists()) {
+                    val nombre = userDocument.getString("nombre") ?: ""
+                    val apellido = userDocument.getString("apellidopaterno") ?: "" // Usa el nombre exacto del campo en Firestore
                     val fetchedName = "$nombre $apellido".trim()
                     _userName.value = if (fetchedName.isNotBlank()) fetchedName else "Usuario"
-                    Log.i("SessionViewModel", "Nombre obtenido de Firestore 'personas' para ${user.uid}: $fetchedName")
+                    Log.i("SessionViewModel", "Nombre obtenido de Firestore 'usuarios' para ${user.uid}: $fetchedName")
+
+                    // Opcional: Si el displayName en Auth estaba vacío pero lo encontramos en Firestore,
+                    // podríamos intentar actualizarlo en Auth para futuras sesiones.
+                    if (user.displayName.isNullOrBlank() && fetchedName.isNotBlank()) {
+                        try {
+                            val profileUpdates = UserProfileChangeRequest.Builder()
+                                .setDisplayName(fetchedName)
+                                .build()
+                            user.updateProfile(profileUpdates).await()
+                            Log.i("SessionViewModel", "displayName en Firebase Auth actualizado a: $fetchedName")
+                        } catch (e: Exception) {
+                            Log.w("SessionViewModel", "No se pudo actualizar displayName en Auth desde Firestore.", e)
+                        }
+                    }
+
                 } else {
-                    _userName.value = "Usuario (Sin perfil)"
-                    Log.w("SessionViewModel", "No se encontró documento en 'personas' para UID: ${user.uid}")
+                    _userName.value = "Usuario (Perfil no encontrado en DB)"
+                    Log.w("SessionViewModel", "No se encontró documento en 'usuarios' para UID: ${user.uid}")
                 }
             } catch (e: Exception) {
                 Log.e("SessionViewModel", "Error al obtener nombre de Firestore para ${user.uid}", e)
-                _userName.value = "Usuario (Error DB)"
+                _userName.value = "Usuario (Error al cargar)"
             }
         }
     }
@@ -91,6 +114,7 @@ class SessionViewModel(
     fun signOut() {
         Log.d("SessionViewModel", "Intentando cerrar sesión...")
         auth.signOut()
+        // El listener se encargará de actualizar _authState, y por ende _userName y _userId
     }
 
     override fun onCleared() {

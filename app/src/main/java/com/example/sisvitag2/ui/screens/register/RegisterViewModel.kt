@@ -6,22 +6,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sisvitag2.data.repository.RegisterRepository
 import com.example.sisvitag2.data.repository.RegisterResult
-import com.example.sisvitag2.data.repository.RegisterError // Asegúrate que este enum esté en el mismo paquete o importado
+import com.example.sisvitag2.data.repository.RegisterError
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat // Para validación de fecha en ViewModel
+import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-// Estados de la UI (RegisterUiState, DropdownDataState - como los tenías)
 sealed class RegisterUiState {
     object Idle : RegisterUiState()
     object LoadingInitialData : RegisterUiState()
     object Registering : RegisterUiState()
-    data class Success(val message: String = "¡Registro completado!") : RegisterUiState()
+    data class Success(val message: String) : RegisterUiState()
     data class Error(val errorType: RegisterError, val message: String?) : RegisterUiState()
 }
 
@@ -48,20 +47,15 @@ class RegisterViewModel(
     private val _dropdownDataState = MutableStateFlow(DropdownDataState())
     val dropdownDataState: StateFlow<DropdownDataState> = _dropdownDataState.asStateFlow()
 
-    companion object {
-        private const val TAG = "RegisterViewModel"
-    }
+    companion object { private const val TAG = "RegisterViewModel" }
 
-    init {
-        loadInitialDropdownData()
-    }
+    init { loadInitialDropdownData() }
 
     private fun loadInitialDropdownData() {
-        if (_dropdownDataState.value.departments.isNotEmpty() &&
-            _dropdownDataState.value.documentTypes.isNotEmpty() && // Chequear todos los relevantes
-            _dropdownDataState.value.genders.isNotEmpty() ||
-            _registerUiState.value == RegisterUiState.LoadingInitialData
-        ) return
+        if ((_dropdownDataState.value.documentTypes.isNotEmpty() &&
+                    _dropdownDataState.value.genders.isNotEmpty() &&
+                    _dropdownDataState.value.departments.isNotEmpty()) ||
+            _registerUiState.value == RegisterUiState.LoadingInitialData) return
 
         _registerUiState.value = RegisterUiState.LoadingInitialData
         _dropdownDataState.update { it.copy(isLoadingDocumentTypes = true, isLoadingGenders = true, isLoadingDepartments = true) }
@@ -69,12 +63,14 @@ class RegisterViewModel(
         viewModelScope.launch {
             var success = true
             try {
+                Log.d(TAG, "loadInitialDropdownData: Cargando datos para dropdowns...")
                 val docTypes = registerRepository.getDocumentTypes()
                 val genders = registerRepository.getGenders()
                 val departments = registerRepository.getDepartments()
                 _dropdownDataState.update { it.copy(documentTypes = docTypes, genders = genders, departments = departments) }
+                Log.d(TAG, "loadInitialDropdownData: Datos cargados. DocTypes: ${docTypes.size}, Genders: ${genders.size}, Departments: ${departments.size}")
             } catch (e: Exception) {
-                Log.e(TAG, "Error cargando datos iniciales", e)
+                Log.e(TAG, "loadInitialDropdownData: Error cargando datos iniciales", e)
                 success = false
                 _registerUiState.value = RegisterUiState.Error(RegisterError.UNKNOWN, "Error al cargar opciones iniciales.")
             } finally {
@@ -115,80 +111,68 @@ class RegisterViewModel(
     }
 
     fun performRegistration(formData: Map<String, Any>) {
-        if (_registerUiState.value is RegisterUiState.Registering) return
+        if (_registerUiState.value is RegisterUiState.Registering) {
+            Log.w(TAG, "Registro ya en progreso.")
+            return
+        }
 
         val email = formData["email_reg"] as? String ?: ""
         val password = formData["password_reg"] as? String ?: ""
-        val nombre = formData["nombre"] as? String ?: ""
-        val apellidoPaterno = formData["apellidopaterno"] as? String ?: ""
-        val fechaNacimientoStr = formData["fechanacimiento_str"] as? String ?: ""
-        val departamento = formData["departamento"] as? String ?: ""
-        val provincia = formData["provincia"] as? String ?: ""
-        val distrito = formData["distrito"] as? String ?: ""
-        val tipoDocumento = formData["tipo_documento"] as? String ?: ""
-        val numeroDocumento = formData["numero_documento"] as? String ?: ""
-        val genero = formData["genero"] as? String ?: ""
-
         var errorMsg: String? = null
         when {
             email.isBlank() -> errorMsg = "El correo es obligatorio."
             !PatternsCompat.EMAIL_ADDRESS.matcher(email).matches() -> errorMsg = "Formato de correo inválido."
             password.isBlank() -> errorMsg = "La contraseña es obligatoria."
             password.length < 6 -> errorMsg = "La contraseña debe tener al menos 6 caracteres."
-            nombre.isBlank() -> errorMsg = "El nombre es obligatorio."
-            apellidoPaterno.isBlank() -> errorMsg = "El apellido paterno es obligatorio."
-            fechaNacimientoStr.isBlank() -> errorMsg = "La fecha de nacimiento es obligatoria."
-            !isValidBirthDateFormat(fechaNacimientoStr) -> errorMsg = "Formato de fecha (YYYY-MM-DD) incorrecto."
-            !isOldEnough(fechaNacimientoStr) -> errorMsg = "Debes ser mayor de 18 años."
-            departamento.isBlank() -> errorMsg = "El departamento es obligatorio."
-            provincia.isBlank() -> errorMsg = "La provincia es obligatoria."
-            distrito.isBlank() -> errorMsg = "El distrito es obligatorio."
-            tipoDocumento.isBlank() -> errorMsg = "El tipo de documento es obligatorio."
-            numeroDocumento.isBlank() -> errorMsg = "El número de documento es obligatorio."
-            genero.isBlank() -> errorMsg = "El género es obligatorio."
+            (formData["nombre"] as? String).isNullOrBlank() -> errorMsg = "El nombre es obligatorio."
+            (formData["apellidopaterno"] as? String).isNullOrBlank() -> errorMsg = "El apellido paterno es obligatorio."
+            (formData["fechanacimiento_str"] as? String).isNullOrBlank() -> errorMsg = "La fecha de nacimiento es obligatoria."
+            !(isValidBirthDateFormat(formData["fechanacimiento_str"] as? String ?: "")) -> errorMsg = "Formato de fecha (YYYY-MM-DD) incorrecto."
+            !(isOldEnough(formData["fechanacimiento_str"] as? String ?: "")) -> errorMsg = "Debes ser mayor de 18 años."
+            (formData["departamento"] as? String).isNullOrBlank() -> errorMsg = "El departamento es obligatorio."
+            (formData["provincia"] as? String).isNullOrBlank() -> errorMsg = "La provincia es obligatoria."
+            (formData["distrito"] as? String).isNullOrBlank() -> errorMsg = "El distrito es obligatorio."
+            (formData["tipo_documento"] as? String).isNullOrBlank() -> errorMsg = "El tipo de documento es obligatorio."
+            (formData["numero_documento"] as? String).isNullOrBlank() -> errorMsg = "El número de documento es obligatorio."
+            (formData["genero"] as? String).isNullOrBlank() -> errorMsg = "El género es obligatorio."
         }
-
         if (errorMsg != null) {
+            Log.w(TAG, "Validación fallida: $errorMsg")
             _registerUiState.value = RegisterUiState.Error(RegisterError.EMPTY_CREDENTIALS, errorMsg)
             return
         }
 
         _registerUiState.value = RegisterUiState.Registering
+        Log.d(TAG, "performRegistration: ViewModel iniciando corutina de registro.")
         viewModelScope.launch {
-            val finalProfileData = formData.toMutableMap()
-            if (!finalProfileData.containsKey("role_description")) {
-                finalProfileData["role_description"] = "Paciente"
-            }
-
-            val result = registerRepository.register(email, password, finalProfileData.toMap())
+            val result = registerRepository.register(email, password, formData)
+            Log.d(TAG, "performRegistration: Resultado del repositorio: $result")
             when (result) {
-                is RegisterResult.Success -> _registerUiState.value = RegisterUiState.Success()
-                is RegisterResult.Failure -> _registerUiState.value = RegisterUiState.Error(result.errorType, result.message)
+                is RegisterResult.Success -> {
+                    _registerUiState.value = RegisterUiState.Success("Usuario registrado. Revisa tu correo para verificar tu cuenta.")
+                }
+                is RegisterResult.Failure -> {
+                    _registerUiState.value = RegisterUiState.Error(result.errorType, result.message)
+                }
             }
-        }
-    }
-
-    private fun isValidBirthDateFormat(dateStr: String): Boolean {
-        return dateStr.matches(Regex("^\\d{4}-\\d{2}-\\d{2}$"))
-    }
-
-    private fun isOldEnough(dateStr: String): Boolean {
-        if (!isValidBirthDateFormat(dateStr)) return false // Asume formato válido para esta comprobación
-        return try {
-            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            sdf.isLenient = false
-            val birthDate = sdf.parse(dateStr) ?: return false
-
-            val eighteenYearsAgo = Calendar.getInstance().apply { add(Calendar.YEAR, -18) }
-            !birthDate.after(eighteenYearsAgo.time) // True si birthDate NO es DESPUÉS de "hoy - 18 años" (es decir, es igual o anterior)
-        } catch (e: Exception) {
-            false
         }
     }
 
     fun resetRegisterState() {
-        if (_registerUiState.value is RegisterUiState.Success || _registerUiState.value is RegisterUiState.Error) {
+        if (_registerUiState.value is RegisterUiState.Error || _registerUiState.value is RegisterUiState.Success) {
             _registerUiState.value = RegisterUiState.Idle
+            Log.d(TAG, "Estado de registro reseteado a Idle.")
         }
+    }
+
+    private fun isValidBirthDateFormat(dateStr: String): Boolean = dateStr.matches(Regex("^\\d{4}-\\d{2}-\\d{2}$"))
+    private fun isOldEnough(dateStr: String): Boolean {
+        if (!isValidBirthDateFormat(dateStr)) return false
+        return try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply { isLenient = false }
+            val birthDate = sdf.parse(dateStr) ?: return false
+            val eighteenYearsAgo = Calendar.getInstance().apply { add(Calendar.YEAR, -18); add(Calendar.DAY_OF_YEAR, 1) }
+            !birthDate.after(eighteenYearsAgo.time)
+        } catch (e: Exception) { false }
     }
 }

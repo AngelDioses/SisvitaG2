@@ -14,7 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-// import androidx.compose.ui.graphics.Color // No se usa explícitamente, MaterialTheme lo maneja
+// import androidx.compose.ui.graphics.Color // No se usa explícitamente
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -36,7 +36,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun LoginScreen(
     navController: NavController,
-    onLoginSuccess: () -> Unit = {} // Callback opcional
+    onLoginSuccess: () -> Unit = {}
 ) {
     val viewModel: LoginViewModel = koinViewModel()
     val loginUiState by viewModel.loginUiState.collectAsState()
@@ -51,9 +51,7 @@ fun LoginScreen(
         when (val state = loginUiState) {
             is LoginUiState.Success -> {
                 Log.d("LoginScreen", "Login Success UI detectado por LoginScreen")
-                // El Toast de éxito puede ser opcional ya que el usuario será redirigido
-                // Toast.makeText(context, "Inicio de sesión exitoso", Toast.LENGTH_SHORT).show()
-                onLoginSuccess() // Notificar al llamador (AuthNavHost) si es necesario
+                onLoginSuccess()
                 viewModel.resetState()
             }
             is LoginUiState.Error -> {
@@ -69,7 +67,7 @@ fun LoginScreen(
                 Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
                 viewModel.resetState()
             }
-            else -> { /* No-op para Idle o Loading */ }
+            else -> { /* No-op */ }
         }
     }
 
@@ -124,22 +122,20 @@ fun LoginScreen(
             }),
             enabled = !isLoading
         )
-        Spacer(modifier = Modifier.height(8.dp)) // Reducir espacio antes de "Olvidaste contraseña"
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // ***** MODIFICACIÓN AQUÍ *****
         Text(
             text = "¿Olvidaste tu contraseña?",
-            color = MaterialTheme.colorScheme.primary, // O un color más sutil como tertiary
+            color = MaterialTheme.colorScheme.primary,
             fontSize = 14.sp,
             modifier = Modifier
-                .align(Alignment.End) // Alinea a la derecha
+                .align(Alignment.End)
                 .clickable(enabled = !isLoading) {
-                    navController.navigate("ForgotPasswordRoute") // Navega a la pantalla de olvido de contraseña
+                    navController.navigate("ForgotPasswordRoute") // NAVEGAR A OLVIDÉ CONTRASEÑA
                 }
-                .padding(vertical = 8.dp) // Añade padding para mejor toque
+                .padding(vertical = 8.dp)
         )
-        // ***** FIN DE MODIFICACIÓN *****
-        Spacer(modifier = Modifier.height(16.dp)) // Espacio antes del botón de login
+        Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = {

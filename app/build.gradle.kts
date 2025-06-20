@@ -3,20 +3,19 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose) // Usamos el alias vinculado a Kotlin
+    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
     alias(libs.plugins.kotlin.serialization)
-    // ----------------------------------
 }
 
 android {
-    namespace = "com.example.sisvitag2" // Tu namespace
-    compileSdk = 35 // O 35
+    namespace = "com.example.sisvitag2"
+    compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.sisvitag2" // Tu ID
+        applicationId = "com.example.sisvitag2"
         minSdk = 28
-        targetSdk = 35 // O 35
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -35,12 +34,11 @@ android {
         }
     }
     compileOptions {
-        // Kotlin 2.1.0 funciona bien con Java 11, pero Java 17 es más moderno
-        sourceCompatibility = JavaVersion.VERSION_11 // O JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_11 // O JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = "11" // O "17"
+        jvmTarget = "11"
     }
     buildFeatures {
         compose = true
@@ -51,32 +49,37 @@ android {
         }
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14" // <-- ¡¡PUEDE NECESITAR CAMBIO!!
-    }
+    // composeOptions { // Comentado o eliminado si la BOM lo maneja
+    //     kotlinCompilerExtensionVersion = "..."
+    // }
 }
 
 dependencies {
     // --- Core y Lifecycle ---
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.runtime.ktx)      // Versión gestionada por BOM de Compose/Lifecycle
+    implementation(libs.androidx.lifecycle.viewmodel.compose) // Versión gestionada por BOM de Compose/Lifecycle
+    implementation(libs.androidx.activity.compose)          // Versión gestionada por BOM de Compose/Lifecycle
 
     // --- Compose UI (BOM) ---
-    implementation(platform(libs.androidx.compose.bom))
+    implementation(platform(libs.androidx.compose.bom)) // La versión está en libs.versions.toml
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.material.icons.core)      // Iconos base de Material
+    implementation(libs.androidx.material.icons.extended) // Iconos extendidos
+
+    implementation("androidx.activity:activity:1.8.1")
 
     // --- Firebase (BOM) ---
-    implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
+    implementation(platform(libs.firebase.bom)) // Usar alias si definiste firebase.bom en [libraries]
+    // o la string directa como tenías: platform("com.google.firebase:firebase-bom:33.1.0")
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.storage.ktx)
     implementation(libs.firebase.functions.ktx)
-    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-analytics") // Puedes dejarlo así o catalogarlo
 
     // --- Koin ---
     implementation(libs.koin.android)
@@ -96,14 +99,23 @@ dependencies {
     implementation(libs.androidx.camera.view)
 
     // --- Navigation ---
-    implementation(libs.androidx.navigation.runtime.ktx) // KTX version
+    implementation(libs.androidx.navigation.runtime.ktx)
     implementation(libs.androidx.navigation.compose)
 
     // --- Kotlinx Serialization ---
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.media3.common.ktx)
-    implementation(libs.androidx.compose.material) // <-- Añadida dependencia
-    // ---------------------------
+
+    // --- Dependencias Opcionales (Eliminar si no se usan) ---
+    // implementation(libs.volley)
+    // implementation(libs.androidx.room.runtime.android)
+
+    // --- AudioWaveform ---
+    implementation(libs.audiowaveform)
+
+    // --- Coil ---
+    implementation(libs.coil.compose)
+    // implementation(libs.coil.gif) // Opcional
 
     // --- Test ---
     testImplementation(libs.junit)
@@ -113,8 +125,4 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-
-    implementation(libs.audiowaveform) // <-- Añadir esta línea
-
-    implementation(libs.androidx.material.icons.extended) // Si usas el catálogo de versiones
 }

@@ -1,6 +1,5 @@
 package com.example.sisvitag2.ui.components
 
-
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -19,26 +18,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection // Para calculateStartPadding/calculateEndPadding
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController // Asegúrate de este import para el Preview
+import coil.compose.AsyncImage // Si usas AsyncImage aquí también
+import coil.request.ImageRequest // Si usas AsyncImage aquí también
 import com.example.sisvitag2.R
 import com.example.sisvitag2.ui.navigation.AppNavHost
 import com.example.sisvitag2.ui.theme.SisvitaG2Theme
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppScaffoldComponent(
     userName: String,
     onLogout: () -> Unit,
     navController: NavHostController
 ) {
-    // Estado del NavigationDrawer
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-
-    // Estado para la pantalla seleccionada
     var selectedScreen by remember { mutableStateOf("Inicio") }
 
-    // Observar el estado de la ruta actual y actualizar el selectedScreen
     LaunchedEffect(navController) {
         navController.currentBackStackEntryFlow.collect { backStackEntry ->
             selectedScreen = when (backStackEntry.destination.route) {
@@ -47,24 +48,22 @@ fun AppScaffoldComponent(
                 "Necesito ayuda" -> "Necesito Ayuda"
                 "Historial" -> "Historial"
                 "Cuenta" -> "Cuenta"
-                "DoTest" -> "Test"
-                else -> "Inicio"
+                else -> backStackEntry.destination.route?.takeIf { it.startsWith("DoTest") }?.let { "Test" } ?: "Inicio"
             }
         }
     }
 
-    // Composición del layout con el NavigationDrawer y el TopBar
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             NavigationDrawerComponent(
                 userName = userName,
                 selectedScreen = selectedScreen,
-                onItemClick = { screen ->
-                    selectedScreen = screen
-                    scope.launch { drawerState.close() } // Cerrar el drawer al seleccionar una opción
-                    navController.navigate(screen) {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                onItemClick = { screenRoute ->
+                    selectedScreen = screenRoute // O el título amigable correspondiente
+                    scope.launch { drawerState.close() }
+                    navController.navigate(screenRoute) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
                     }
@@ -76,14 +75,17 @@ fun AppScaffoldComponent(
         Scaffold(
             topBar = {
                 TopBarComponent(
-                    title = if (selectedScreen == "Inicio") "Sisvita" else selectedScreen,
+                    title = if (selectedScreen == "Inicio" && navController.currentDestination?.route == "Inicio") "Sisvita" else selectedScreen,
                     onMenuClick = {
-                        scope.launch { drawerState.open() } // Abrir el drawer al hacer clic en el botón de menú
+                        scope.launch { drawerState.open() }
                     }
                 )
             },
             content = { paddingValues ->
-                AppNavHost(navController = navController, paddingValues = paddingValues,)
+                AppNavHost(
+                    navController = navController,
+                    paddingValues = paddingValues
+                )
             }
         )
     }
@@ -102,7 +104,8 @@ fun TopBarComponent(
                     text = title,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1
                 )
             },
             navigationIcon = {
@@ -110,9 +113,9 @@ fun TopBarComponent(
                     Icon(Icons.Filled.Menu, contentDescription = "Menu")
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(
+            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                 containerColor = MaterialTheme.colorScheme.surface
-            ),
+            )
         )
         HorizontalDivider(
             thickness = 1.dp,
@@ -129,115 +132,83 @@ fun NavigationDrawerComponent(
     onLogout: () -> Unit
 ) {
     ModalDrawerSheet(
-        modifier = Modifier.width(240.dp),
+        modifier = Modifier.width(280.dp),
         drawerContainerColor = MaterialTheme.colorScheme.surface
     ) {
-        // Usuario
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Asumiendo que user1.jpg es un placeholder o que photoUrl se manejaría aquí
+            // si se pasara desde SessionViewModel a AppScaffoldComponent.
+            // Por ahora, usando el placeholder directamente.
             Image(
-                painter = painterResource(id = R.drawable.user1),
-                contentDescription = "User profile",
+                painter = painterResource(id = R.drawable.user1), // Placeholder
+                contentDescription = "Foto de perfil",
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(80.dp)
                     .clip(CircleShape)
-                    .border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = CircleShape
-                    )
+                    .border(BorderStroke(2.dp, MaterialTheme.colorScheme.primary), CircleShape)
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = userName, style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(text = userName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(8.dp))
+        val menuItems = listOf(
+            "Inicio" to R.drawable.ic_home,
+            "Test" to R.drawable.ic_test,
+            "Necesito ayuda" to R.drawable.ic_help,
+            "Historial" to R.drawable.ic_history,
+            "Cuenta" to R.drawable.ic_account
+        )
 
-        // Opciones del menú
-        val menuItems = listOf("Inicio", "Test", "Necesito ayuda", "Historial", "Cuenta")
-        menuItems.forEach { item ->
+        menuItems.forEach { (route, iconRes) ->
+            val itemPadding = NavigationDrawerItemDefaults.ItemPadding // Guardar para usar
             NavigationDrawerItem(
-                modifier = Modifier
-                    .padding(horizontal = 6.dp),
-                icon = {
-                    when (item) {
-                        "Inicio" -> Icon(
-                            painter = painterResource(id = R.drawable.ic_home),
-                            contentDescription = null
-                        )
-
-                        "Test" -> Icon(
-                            painter = painterResource(id = R.drawable.ic_test),
-                            contentDescription = null
-                        )
-
-                        "Necesito ayuda" -> Icon(
-                            painter = painterResource(id = R.drawable.ic_help),
-                            contentDescription = null
-                        )
-
-                        "Historial" -> Icon(
-                            painter = painterResource(id = R.drawable.ic_history),
-                            contentDescription = null
-                        )
-
-                        "Cuenta" -> Icon(
-                            painter = painterResource(id = R.drawable.ic_account),
-                            contentDescription = null
-                        )
-                    }
-                },
-                label = { Text(item) },
-                selected = selectedScreen == item,
-                onClick = { onItemClick(item) }
+                modifier = Modifier.padding( // Usar la alternativa si .copy da error
+                    start = itemPadding.calculateStartPadding(LayoutDirection.Ltr),
+                    top = itemPadding.calculateTopPadding(),
+                    end = itemPadding.calculateEndPadding(LayoutDirection.Ltr),
+                    bottom = itemPadding.calculateBottomPadding()
+                ).padding(horizontal = 12.dp - itemPadding.calculateStartPadding(LayoutDirection.Ltr)), // Ajuste para que el padding total sea ~12dp horizontal
+                icon = { Icon(painter = painterResource(id = iconRes), contentDescription = route) },
+                label = { Text(route) },
+                selected = selectedScreen == route, // Compara con la ruta
+                onClick = { onItemClick(route) }
             )
         }
 
         Spacer(modifier = Modifier.weight(1f))
 
+        val itemPadding = NavigationDrawerItemDefaults.ItemPadding
         NavigationDrawerItem(
-            icon = {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_logout),
-                    contentDescription = null
-                )
-            },
+            modifier = Modifier.padding(
+                start = itemPadding.calculateStartPadding(LayoutDirection.Ltr),
+                top = itemPadding.calculateTopPadding(),
+                end = itemPadding.calculateEndPadding(LayoutDirection.Ltr),
+                bottom = itemPadding.calculateBottomPadding()
+            ).padding(horizontal = 12.dp - itemPadding.calculateStartPadding(LayoutDirection.Ltr)),
+            icon = { Icon(painter = painterResource(id = R.drawable.ic_logout), contentDescription = "Cerrar sesión") },
             label = { Text("Cerrar sesión") },
             selected = false,
             onClick = onLogout
         )
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
-//@Composable
-//fun ScreenContent(
-//    selectedScreen: String,
-//    paddingValues: PaddingValues,
-//    onHelpMeClick: () -> Unit
-//) {
-//    // Mostrar el contenido correspondiente según la pantalla seleccionada
-//    when (selectedScreen) {
-//        "Inicio" -> HomeScreen(paddingValues, onHelpMeClick)
-//        "Test" -> HomeScreen(paddingValues, onHelpMeClick)
-//        "Necesito ayuda" -> HelpMeScreen()
-//        "Historial" -> HomeScreen(paddingValues, onHelpMeClick)
-//        "Cuenta" -> HomeScreen(paddingValues, onHelpMeClick)
-//    }
-//}
-
-@Preview
+@Preview(showBackground = true)
 @Composable
 fun AppScaffoldPreview() {
     SisvitaG2Theme(darkTheme = false) {
+        val previewNavController = rememberNavController() // <- Esto debería funcionar si navigation-compose está bien.
         AppScaffoldComponent(
-            userName = "Linna Jimenez",
+            userName = "Usuario Preview",
             onLogout = {},
-            navController = NavHostController(LocalContext.current)
+            navController = previewNavController
         )
     }
 }

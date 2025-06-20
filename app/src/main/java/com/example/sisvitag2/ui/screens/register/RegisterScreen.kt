@@ -10,7 +10,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday // Asegúrate que esta dependencia esté y el import sea correcto
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,9 +25,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination // Para popUpTo
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.rememberNavController
-import androidx.wear.compose.material.ContentAlpha
 import com.example.sisvitag2.ui.theme.SisvitaG2Theme
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
@@ -38,7 +37,7 @@ import java.util.Locale
 @Composable
 fun RegisterScreen(
     navController: NavController,
-    viewModel: RegisterViewModel = koinViewModel()
+    viewModel: RegisterViewModel = koinViewModel() // ViewModel del mensaje anterior (sin Channel)
 ) {
     val registerUiState by viewModel.registerUiState.collectAsState()
     val dropdownsState by viewModel.dropdownDataState.collectAsState()
@@ -57,7 +56,7 @@ fun RegisterScreen(
     var department by remember { mutableStateOf("") }
     var province by remember { mutableStateOf("") }
     var district by remember { mutableStateOf("") }
-    var birthDate by remember { mutableStateOf("") } // String en formato YYYY-MM-DD
+    var birthDate by remember { mutableStateOf("") }
 
     var isDocumentTypeExpanded by remember { mutableStateOf(false) }
     var isGenderExpanded by remember { mutableStateOf(false) }
@@ -79,24 +78,21 @@ fun RegisterScreen(
 
     val isRegistering = registerUiState is RegisterUiState.Registering
 
+    // Este LaunchedEffect SÓLO se encarga de mostrar Toasts y resetear el estado del ViewModel.
+    // NO se encarga de la navegación después de un registro exitoso.
     LaunchedEffect(registerUiState) {
         when (val state = registerUiState) {
             is RegisterUiState.Success -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
-                // ***** MODIFICACIÓN AQUÍ *****
-                // Navegar a la pantalla de verificación de correo en lugar de LoginRoute
-                navController.navigate("EmailVerificationRoute") {
-                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
-                    launchSingleTop = true
-                }
-                // ***** FIN DE MODIFICACIÓN *****
-                viewModel.resetRegisterState()
+                // La navegación a EmailVerificationScreen será manejada por AuthDecisionRoot
+                // cuando SessionViewModel detecte el nuevo usuario autenticado (pero no verificado).
+                viewModel.resetRegisterState() // Resetear el estado del RegisterViewModel
             }
             is RegisterUiState.Error -> {
-                Toast.makeText(context, state.message ?: "Error desconocido", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, state.message ?: "Error desconocido en el registro.", Toast.LENGTH_LONG).show()
                 viewModel.resetRegisterState()
             }
-            else -> { /* No-op */ }
+            else -> { /* No-op para Idle, LoadingInitialData, Registering aquí */ }
         }
     }
 
@@ -158,11 +154,11 @@ fun RegisterScreen(
             enabled = !isRegistering,
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                disabledTextColor = if(isRegistering) MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.disabled) else MaterialTheme.colorScheme.onSurface,
-                disabledBorderColor = if(isRegistering) MaterialTheme.colorScheme.outline.copy(alpha = ContentAlpha.disabled) else MaterialTheme.colorScheme.outline,
-                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.medium),
-                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.medium),
-                disabledTrailingIconColor = if(isRegistering) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.disabled) else MaterialTheme.colorScheme.onSurfaceVariant
+                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f),
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f),
+                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
             )
         )
         DropdownInput(label = "Departamento *", selectedValue = department, options = dropdownsState.departments, isLoading = dropdownsState.isLoadingDepartments, expanded = isDepartmentExpanded, onExpandedChange = { isDepartmentExpanded = it }, onValueChange = { department = it; isDepartmentExpanded = false; province = ""; district = ""; viewModel.getProvinces(it) }, modifier = Modifier.fillMaxWidth(), enabled = !isRegistering)
@@ -191,7 +187,6 @@ fun RegisterScreen(
                     formDataForViewModel["distrito"] = district
                     formDataForViewModel["fechanacimiento_str"] = birthDate
                     formDataForViewModel["role_description"] = "Paciente"
-
                     viewModel.performRegistration(formDataForViewModel.toMap())
                 }
             },
@@ -221,6 +216,7 @@ fun RegisterScreen(
     }
 }
 
+// DropdownInput y Preview (sin cambios)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DropdownInput(

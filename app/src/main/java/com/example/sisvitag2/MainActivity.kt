@@ -23,8 +23,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.sisvitag2.ui.components.AppScaffoldComponent // TU Scaffold personalizado
-// AppNavHost se llama DENTRO de AppScaffoldComponent, no directamente desde aquí.
+import com.example.sisvitag2.ui.components.AppScaffoldComponent
+// AppNavHost es llamado desde AppScaffoldComponent, no directamente aquí
 // import com.example.sisvitag2.ui.navigation.AppNavHost
 import com.example.sisvitag2.ui.screens.auth.EmailVerificationScreen
 import com.example.sisvitag2.ui.screens.auth.ForgotPasswordScreen
@@ -45,7 +45,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        try {
+            enableEdgeToEdge()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error en enableEdgeToEdge (puede ser por API level o dependencia): ${e.message}")
+        }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -68,7 +72,7 @@ class MainActivity : ComponentActivity() {
 fun AuthDecisionRoot() {
     val sessionViewModel: SessionViewModel = koinViewModel()
     val authState by sessionViewModel.authState.collectAsState()
-    val globalNavController = rememberNavController() // NavController para toda la app
+    val globalNavController = rememberNavController()
 
     Log.d("AuthDecisionRoot", "Estado de autenticación actual: $authState")
 
@@ -85,14 +89,12 @@ fun AuthDecisionRoot() {
             } else {
                 Log.d("AuthDecisionRoot", "Usuario ${currentAuthState.user.email} autenticado Y VERIFICADO. Mostrando AppScaffold.")
                 val userName by sessionViewModel.userName.collectAsState()
-
-                // Llama a AppScaffoldComponent SIN el lambda de contenido final,
-                // porque tu AppScaffoldComponent ya se encarga de mostrar AppNavHost.
                 AppScaffoldComponent(
                     userName = userName ?: "Bienvenido/a",
                     onLogout = { sessionViewModel.signOut() },
-                    navController = globalNavController // Este NavController se usa DENTRO de AppScaffoldComponent para su AppNavHost
+                    navController = globalNavController
                 )
+                // AppNavHost es llamado DENTRO de AppScaffoldComponent
             }
         }
         is AuthState.Unauthenticated -> {
@@ -102,8 +104,6 @@ fun AuthDecisionRoot() {
     }
 }
 
-// Grafo de Navegación para Autenticación y Verificación
-// Se muestra cuando el usuario no está logueado o necesita verificar correo.
 @Composable
 fun AuthNavHost(navController: NavHostController, startDestination: String = "LoginRoute") {
     NavHost(navController = navController, startDestination = startDestination) {
@@ -111,8 +111,7 @@ fun AuthNavHost(navController: NavHostController, startDestination: String = "Lo
             LoginScreen(
                 navController = navController,
                 onLoginSuccess = {
-                    Log.d("AuthNavHost", "LoginScreen reportó éxito.")
-                    // La navegación la maneja AuthDecisionRoot al cambiar el AuthState
+                    Log.d("AuthNavHost", "LoginScreen reportó éxito. AuthDecisionRoot reaccionará.")
                 }
             )
         }

@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavGraph.Companion.findStartDestination // Para popUpTo
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -16,6 +16,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.sisvitag2.data.repository.emotionalAnalysis.EmotionalAnalysisResponse
 import com.example.sisvitag2.ui.screens.HelpMeScreen
+import com.example.sisvitag2.ui.screens.account.AccountScreen
+import com.example.sisvitag2.ui.screens.account.EditProfileScreen // <-- IMPORTAR EditProfileScreen
 import com.example.sisvitag2.ui.screens.camera.CameraScreen
 import com.example.sisvitag2.ui.screens.home.HomeScreen
 import com.example.sisvitag2.ui.screens.loading.LoadingScreen
@@ -41,7 +43,7 @@ fun AppNavHost(
     NavHost(
         navController = navController,
         startDestination = startDestination,
-        modifier = Modifier.padding(paddingValues) // El NavHost aplica el padding
+        modifier = Modifier.padding(paddingValues)
     ) {
         composable("Inicio") {
             HomeScreen(
@@ -59,8 +61,14 @@ fun AppNavHost(
                 rootNavController = navController
             )
         }
-        composable("Historial") { /* ... */ }
-        composable("Cuenta") { /* ... */ }
+        composable("Historial") {
+            // TODO: HistoryScreen(navController = navController)
+        }
+        composable("Cuenta") {
+            AccountScreen(
+                navController = navController // <--- PASAR NavController
+            )
+        }
         composable(
             route = "DoTest/{testId}",
             arguments = listOf(navArgument("testId") { type = NavType.StringType; nullable = true })
@@ -68,12 +76,18 @@ fun AppNavHost(
             val testId = backStackEntry.arguments?.getString("testId")
             TestFormScreen(
                 navController = navController,
-                testId = testId // Pasa el testId (puede ser null)
+                testId = testId
             )
         }
+        // ***** NUEVA RUTA PARA EDITAR PERFIL *****
+        composable("EditProfileRoute") {
+            EditProfileScreen(navController = navController)
+        }
+        // ***** FIN DE NUEVA RUTA *****
     }
 }
 
+// HelpMeNavHost (sin cambios respecto a la última versión que te di)
 @Composable
 fun HelpMeNavHost(
     rootNavController: NavHostController,
