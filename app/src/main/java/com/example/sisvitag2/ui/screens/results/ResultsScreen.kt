@@ -4,8 +4,12 @@ import android.net.Uri // No parece usarse aquí, considera eliminar si no es ne
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -38,7 +42,14 @@ import java.nio.charset.StandardCharsets
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random // Para el generador de color
-
+import androidx.compose.material3.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.Canvas
+import kotlin.math.cos
+import kotlin.math.sin
 @Composable
 fun ResultsScreen(
     // paddingValues: PaddingValues, // ELIMINADO de la firma
@@ -94,6 +105,12 @@ fun ResultsScreen(
                     AnxietyLevelCard(level = anxietyLevel)
                     Spacer(modifier = Modifier.height(24.dp))
 
+
+                    // Agregar los nuevos gráficos  
+                    EmotionRadarChart(emotionPercentages = emotionPercentages)  
+                    Spacer(modifier = Modifier.height(16.dp))  
+                    EmotionalTrendChart(emotionPercentages = emotionPercentages)  
+                    Spacer(modifier = Modifier.height(24.dp))
                     Text(
                         text = "Recomendaciones",
                         style = MaterialTheme.typography.titleMedium,
@@ -274,7 +291,7 @@ fun DisplayEmotionBar(emotion: String, percentage: Float, color: Color) {
         )
     }
 }
-
+ 
 fun generateColorFromString(input: String): Color {
     val seed = input.hashCode()
     val random = Random(seed.toLong())
@@ -296,6 +313,10 @@ fun PreviewResultsScreenContent() {
             Spacer(modifier = Modifier.height(16.dp))
             AnxietyLevelCard(level = sampleAnxiety)
             Spacer(modifier = Modifier.height(24.dp))
+            EmotionRadarChart(emotionPercentages = sampleEmotions)  
+            Spacer(modifier = Modifier.height(16.dp))  
+            EmotionalTrendChart(emotionPercentages = sampleEmotions)
+
             Text("Recomendaciones", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
             Spacer(modifier = Modifier.height(8.dp))
             Button(onClick = { }) {
@@ -303,4 +324,263 @@ fun PreviewResultsScreenContent() {
             }
         }
     }
+}
+
+
+@Composable
+fun EmotionRadarChart(emotionPercentages: Map<String, Float>) {
+    // Definir emotions al inicio del composable para que esté disponible en todo el scope
+    val emotions = emotionPercentages.keys.toList()
+    val colors = remember(emotionPercentages.keys) {
+        emotionPercentages.keys.associateWith { generateColorFromString(it) }
+    }
+    val primaryColor = MaterialTheme.colorScheme.primary
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "Perfil Emocional Radar",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            Canvas(
+                modifier = Modifier
+                    .size(200.dp)
+                    .padding(16.dp)
+            ) {
+                val center = Offset(size.width / 2f, size.height / 2f)
+                val radius = size.minDimension / 2f * 0.8f
+                // Remover esta línea: val emotions = emotionPercentages.keys.toList()
+                val angleStep = 360f / emotions.size
+
+                // Dibujar círculos concéntricos (guías)  
+                for (i in 1..5) {  
+                    val circleRadius = radius * (i / 5f)  
+                    drawCircle(  
+                        color = Color.Gray.copy(alpha = 0.3f),  
+                        radius = circleRadius,  
+                        center = center,  
+                        style = Stroke(width = 1.dp.toPx())  
+                    )  
+                }  
+                  
+                // Dibujar ejes  
+                emotions.forEachIndexed { index, emotion ->  
+                    val angle = Math.toRadians((index * angleStep - 90).toDouble())  
+                    val endX = center.x + (radius * cos(angle)).toFloat()  
+                    val endY = center.y + (radius * sin(angle)).toFloat()  
+                      
+                    drawLine(  
+                        color = Color.Gray.copy(alpha = 0.5f),  
+                        start = center,  
+                        end = Offset(endX, endY),  
+                        strokeWidth = 1.dp.toPx()  
+                    )  
+                }  
+                  
+                // Dibujar polígono de datos  
+                val dataPoints = mutableListOf<Offset>()  
+                emotions.forEachIndexed { index, emotion ->  
+                    val percentage = emotionPercentages[emotion] ?: 0f  
+                    val normalizedValue = percentage / 100f  
+                    val angle = Math.toRadians((index * angleStep - 90).toDouble())  
+                    val pointRadius = radius * normalizedValue  
+                    val x = center.x + (pointRadius * cos(angle)).toFloat()  
+                    val y = center.y + (pointRadius * sin(angle)).toFloat()  
+                    dataPoints.add(Offset(x, y))  
+                }  
+                  
+                // Conectar puntos  
+                for (i in dataPoints.indices) {  
+                    val nextIndex = (i + 1) % dataPoints.size  
+                    drawLine(
+                        color = primaryColor,
+                        start = dataPoints[i],
+                        end = dataPoints[nextIndex],  
+                        strokeWidth = 2.dp.toPx()  
+                    )  
+                }
+
+                // Dibujar puntos de datos  
+                dataPoints.forEachIndexed { index, point ->  
+                    val emotion = emotions[index]  
+                    drawCircle(  
+                        color = colors[emotion] ?: Color.Gray,  
+                        radius = 4.dp.toPx(),  
+                        center = point  
+                    )  
+                }  
+            }  
+              
+            // Leyenda  
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 8.dp)
+            ) {
+                items(emotions) { emotion ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    colors[emotion] ?: Color.Gray,
+                                    CircleShape
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = emotion,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable  
+fun EmotionalTrendChart(emotionPercentages: Map<String, Float>) {  
+    // Categorizar emociones  
+    val positiveEmotions = listOf("Feliz")  
+    val negativeEmotions = listOf("Triste", "Enojado", "Miedo", "Disgustado")  
+    val neutralEmotions = listOf("Neutral", "Sorpresa")  
+      
+    val positiveSum = positiveEmotions.sumOf { (emotionPercentages[it] ?: 0f).toDouble() }.toFloat()  
+    val negativeSum = negativeEmotions.sumOf { (emotionPercentages[it] ?: 0f).toDouble() }.toFloat()  
+    val neutralSum = neutralEmotions.sumOf { (emotionPercentages[it] ?: 0f).toDouble() }.toFloat()  
+      
+    val categories = mapOf(  
+        "Positivas" to positiveSum,  
+        "Negativas" to negativeSum,  
+        "Neutras" to neutralSum  
+    )  
+      
+    val categoryColors = mapOf(  
+        "Positivas" to Color(0xFF4CAF50), // Verde  
+        "Negativas" to Color(0xFFF44336), // Rojo  
+        "Neutras" to Color(0xFF9E9E9E)    // Gris  
+    )  
+      
+    Card(  
+        modifier = Modifier.fillMaxWidth(),  
+        shape = RoundedCornerShape(12.dp),  
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),  
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)  
+    ) {  
+        Column(  
+            modifier = Modifier  
+                .fillMaxWidth()  
+                .padding(16.dp)  
+        ) {  
+            Text(  
+                "Tendencia Emocional",  
+                style = MaterialTheme.typography.titleMedium,  
+                modifier = Modifier.padding(bottom = 12.dp)  
+            )  
+              
+            // Gráfico de barras horizontales  
+            categories.entries.sortedByDescending { it.value }.forEach { (category, percentage) ->  
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {  
+                    Row(  
+                        modifier = Modifier.fillMaxWidth(),  
+                        horizontalArrangement = Arrangement.SpaceBetween,  
+                        verticalAlignment = Alignment.CenterVertically  
+                    ) {  
+                        Row(verticalAlignment = Alignment.CenterVertically) {  
+                            Box(  
+                                modifier = Modifier  
+                                    .size(12.dp)  
+                                    .background(  
+                                        categoryColors[category] ?: Color.Gray,  
+                                        CircleShape  
+                                    )  
+                            )  
+                            Spacer(modifier = Modifier.width(8.dp))  
+                            Text(  
+                                text = category,  
+                                style = MaterialTheme.typography.bodyMedium,  
+                                color = MaterialTheme.colorScheme.onSurfaceVariant  
+                            )  
+                        }  
+                        Text(  
+                            text = "${"%.1f".format(percentage)}%",  
+                            style = MaterialTheme.typography.bodyMedium,  
+                            color = MaterialTheme.colorScheme.onSurfaceVariant  
+                        )  
+                    }  
+                      
+                    Spacer(modifier = Modifier.height(4.dp))  
+                      
+                    LinearProgressIndicator(  
+                        progress = { (percentage / 100f).coerceIn(0f, 1f) },  
+                        modifier = Modifier  
+                            .fillMaxWidth()  
+                            .height(8.dp)  
+                            .clip(RoundedCornerShape(4.dp)),  
+                        color = categoryColors[category] ?: Color.Gray,  
+                        trackColor = (categoryColors[category] ?: Color.Gray).copy(alpha = 0.25f)  
+                    )  
+                }  
+                Spacer(modifier = Modifier.height(8.dp))  
+            }  
+              
+            // Gráfico circular (donut)  
+            Spacer(modifier = Modifier.height(16.dp))  
+            Box(  
+                modifier = Modifier  
+                    .size(120.dp)  
+                    .align(Alignment.CenterHorizontally)  
+            ) {  
+                Canvas(modifier = Modifier.fillMaxSize()) {  
+                    val total = categories.values.sum()  
+                    if (total > 0) {  
+                        var startAngle = -90f  
+                        categories.forEach { (category, value) ->  
+                            val sweepAngle = (value / total) * 360f  
+                            drawArc(  
+                                color = categoryColors[category] ?: Color.Gray,  
+                                startAngle = startAngle,  
+                                sweepAngle = sweepAngle,  
+                                useCenter = false,  
+                                style = Stroke(width = 16.dp.toPx(), cap = StrokeCap.Round)  
+                            )  
+                            startAngle += sweepAngle  
+                        }  
+                    }  
+                }  
+                  
+                // Texto central  
+                Column(  
+                    modifier = Modifier.align(Alignment.Center),  
+                    horizontalAlignment = Alignment.CenterHorizontally  
+                ) {  
+                    Text(  
+                        text = "Total",  
+                        style = MaterialTheme.typography.bodySmall,  
+                        color = MaterialTheme.colorScheme.onSurfaceVariant  
+                    )  
+                    Text(  
+                        text = "${"%.1f".format(categories.values.sum())}%",  
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),  
+                        color = MaterialTheme.colorScheme.primary  
+                    )  
+                }  
+            }  
+        }  
+    }  
 }
