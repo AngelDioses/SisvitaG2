@@ -1,0 +1,28 @@
+=== INFORME DE ENTRENAMIENTO FER2013 ===
+
+Precisión en test: 0.5776
+Pérdida en test: 1.1235
+
+=== Hiperparámetros ===
+Épocas máximas: 50
+Batch size: 64
+Tamaño de imagen: 48x48
+Número de clases: 7
+
+=== Clases ===
+angry, disgust, fear, happy, neutral, sad, surprise
+
+=== Classification Report ===
+              precision    recall  f1-score   support
+
+       angry       0.52      0.39      0.45       958
+     disgust       1.00      0.01      0.02       111
+        fear       0.48      0.15      0.22      1024
+       happy       0.81      0.85      0.83      1774
+     neutral       0.52      0.58      0.55      1233
+         sad       0.38      0.63      0.48      1247
+    surprise       0.71      0.76      0.73       831
+
+    accuracy                           0.58      7178
+   macro avg       0.63      0.48      0.47      7178
+weighted avg       0.59      0.58      0.56      7178
