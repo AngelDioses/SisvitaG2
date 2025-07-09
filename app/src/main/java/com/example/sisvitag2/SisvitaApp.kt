@@ -34,7 +34,7 @@ class SisvitaApp : Application() {
                 testModule,
                 emotionOrientationModule,
                 emotionalAnalysisModule,
-                accountModule
+                accountModule // Usar solo accountModule (minúscula)
             )
         }
     }

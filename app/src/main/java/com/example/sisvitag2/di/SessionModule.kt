@@ -7,8 +7,8 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val sessionModule = module {
-    // Definición para SessionViewModel
-    viewModel { SessionViewModel(get(), get()) } // Koin inyectará FirebaseAuth y FirebaseFirestore
+    // Definición para SessionViewModel como SINGLE para instancia única global
+    single { SessionViewModel(get(), get()) } // Koin inyectará FirebaseAuth y FirebaseFirestore
 
     viewModel { EmailVerificationViewModel(get()) } // Necesita FirebaseAuth
     viewModel { ForgotPasswordViewModel(get()) }   // Necesita FirebaseAuth

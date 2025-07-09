@@ -6,9 +6,9 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val loginModule = module {
-    // Repositorio: Correcto (necesita FirebaseAuth)
-    single { LoginRepository(get()) } // Koin inyectará FirebaseAuth desde firebaseModule
+    // Repositorio: Ahora recibe FirebaseAuth y FirebaseFirestore
+    single { LoginRepository(get(), get()) } // Koin inyectará FirebaseAuth y FirebaseFirestore
 
     // ViewModel: Correcto (necesita LoginRepository)
-    viewModel { LoginViewModel(get()) } // Koin inyectará LoginRepository
+    viewModel { LoginViewModel(get()) }
 }
