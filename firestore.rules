@@ -1,0 +1,92 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- DATOS PÚBLICOS PARA REGISTRO (Dropdowns) ---
+    match /tipos_documento/{docId} { allow read: if true; allow write: if false; }
+    match /generos/{docId} { allow read: if true; allow write: if false; }
+    match /ubigeos/{ubigeoId} { allow read: if true; allow write: if false; }
+    match /tipos_usuario/{tipoId} { allow read: if true; allow write: if false; }
+    match /tiposUsuario/{tipoId} { allow read: if true; allow write: if false; }
+
+    //------------------------------------------------------------
+    // Colección de Usuarios (Contiene todos los datos del perfil)
+    //------------------------------------------------------------
+    match /usuarios/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Regla para crear documentos básicos temporales (mínimo requerido)
+      allow create: if request.auth != null && request.auth.uid == userId &&
+                      request.resource.data.uid == request.auth.uid &&
+                      request.resource.data.correo == request.auth.token.email &&
+                      request.resource.data.nombre is string && request.resource.data.nombre.size() > 0;
+
+      // Regla para crear documentos completos (registro normal)
+      allow create: if request.auth != null && request.auth.uid == userId &&
+                      request.resource.data.uid == request.auth.uid &&
+                      request.resource.data.correo == request.auth.token.email &&
+                      request.resource.data.tipousuarioid is string && request.resource.data.tipousuarioid.size() > 0 &&
+                      request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 &&
+                      request.resource.data.apellidopaterno is string && request.resource.data.apellidopaterno.size() > 0 &&
+                      (!request.resource.data.containsKey('apellidomaterno') || (request.resource.data.apellidomaterno is string)) &&
+                      request.resource.data.fechanacimiento is timestamp &&
+                      request.resource.data.ubigeoid is string && request.resource.data.ubigeoid.size() > 0 &&
+                      request.resource.data.tipo_documento is string && request.resource.data.tipo_documento.size() > 0 &&
+                      request.resource.data.numero_documento is string && request.resource.data.numero_documento.size() > 0 &&
+                      request.resource.data.genero is string && request.resource.data.genero.size() > 0 &&
+                      (!request.resource.data.containsKey('telefono') || (request.resource.data.telefono is string));
+
+      allow update: if request.auth != null && request.auth.uid == userId &&
+                      request.resource.data.uid == resource.data.uid &&
+                      request.resource.data.correo == resource.data.correo &&
+                      request.resource.data.tipousuarioid == resource.data.tipousuarioid &&
+                      request.resource.data.fechanacimiento == resource.data.fechanacimiento &&
+                      request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 &&
+                      request.resource.data.apellidopaterno is string && request.resource.data.apellidopaterno.size() > 0 &&
+                      (!request.resource.data.containsKey('apellidomaterno') || request.resource.data.apellidomaterno is string) &&
+                      (!request.resource.data.containsKey('telefono') || (request.resource.data.telefono is string)) &&
+                      request.resource.data.ubigeoid is string && 
+                      request.resource.data.tipo_documento is string && 
+                      request.resource.data.numero_documento is string && 
+                      request.resource.data.genero is string; 
+      allow delete: if false;
+    }
+
+    //------------------------------------------------------------
+    // Resto de tus colecciones
+    //------------------------------------------------------------
+    match /tests/{testId} { allow read: if request.auth != null; allow write: if false; }
+    match /preguntas/{preguntaId} { allow read: if request.auth != null; allow write: if false; }
+    match /respuestas/{respuestaId} { allow read: if request.auth != null; allow write: if false; }
+    match /puntuaciones/{puntuacionId} { allow read: if request.auth != null; allow write: if false; }
+    match /colors/{colorId} { allow read: if request.auth != null; allow write: if false; }
+
+    match /diagnosticos/{diagnosticoId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.personaId;
+      allow create: if false;
+      allow update, delete: if false;
+    }
+    match /respuestasUsuario/{respuestaUserId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.personaId;
+      allow create, update, delete: if false;
+    }
+    match /analisisResultados/{videoId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId &&
+                      request.resource.data.status == "subido" &&
+                      !request.resource.data.containsKey("resultados") &&
+                      !request.resource.data.containsKey("error") &&
+                      request.resource.data.keys().hasAll(['userId', 'storagePath', 'status', 'timestamp']);
+      allow update: if false;
+      allow delete: if false;
+    }
+    match /observaciones/{observacionId} {
+      allow read: if request.auth != null && (request.auth.uid == resource.data.personaId || request.auth.uid == resource.data.especialistaId);
+      allow create: if request.auth != null &&
+                      request.resource.data.keys().hasAll(['itemId', 'itemType', 'especialistaId', 'personaId', 'fechaObservacion', 'observacion', 'recomendacion']) &&
+                      request.resource.data.especialistaId == request.auth.uid;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.especialistaId;
+    }
+  }
+} 
