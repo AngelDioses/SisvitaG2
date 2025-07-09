@@ -8,7 +8,9 @@ import com.example.sisvitag2.di.firebaseModule
 import com.example.sisvitag2.di.loginModule 
 import com.example.sisvitag2.di.registerModule
 import com.example.sisvitag2.di.sessionModule // Este módulo ahora define los 3 ViewModels de sesión/auth
+import com.example.sisvitag2.di.specialistModule
 import com.example.sisvitag2.di.testModule
+import com.example.sisvitag2.di.feedbackModule
 import kotlinx.coroutines.DEBUG_PROPERTY_NAME
 import kotlinx.coroutines.DEBUG_PROPERTY_VALUE_ON
 
@@ -31,10 +33,12 @@ class SisvitaApp : Application() {
                 sessionModule, // Ahora este módulo es más completo
                 loginModule,
                 registerModule,
+                specialistModule,
                 testModule,
                 emotionOrientationModule,
                 emotionalAnalysisModule,
-                accountModule // Usar solo accountModule (minúscula)
+                accountModule, // Usar solo accountModule (minúscula)
+                feedbackModule // Agregado para feedbacks
             )
         }
     }
