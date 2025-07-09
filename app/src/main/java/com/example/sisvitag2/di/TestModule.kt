@@ -6,8 +6,8 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val testModule = module {
-    // Repositorio: Correcto (necesita Firestore y Functions)
-    single { TestRepository(get(), get()) } // Inyecta Firestore y Functions
+    // Repositorio: Solo necesita Firestore (eliminamos Functions)
+    single { TestRepository(get()) } // Inyecta solo Firestore
 
     // ViewModel: Correcto (necesita TestRepository)
     viewModel { TestViewModel(get()) } // 'get()' inyecta TestRepository
