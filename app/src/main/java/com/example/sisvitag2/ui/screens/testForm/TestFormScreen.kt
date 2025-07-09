@@ -124,14 +124,49 @@ fun TestFormScreen(
     }
 
     showResultDialog?.let { successResult ->
-        ResultDialog(
-            diagnostico = successResult.diagnostico ?: "No disponible",
-            puntaje = successResult.puntaje ?: 0,
-            onDismiss = {
-                viewModel.clearSubmitResult()
-                navController.popBackStack() // Volver a la pantalla anterior (lista de tests o home)
-            }
-        )
+        if (successResult.diagnostico == null && successResult.puntaje == null) {
+            AlertDialog(
+                onDismissRequest = {
+                    viewModel.clearSubmitResult()
+                    navController.popBackStack()
+                },
+                title = {
+                    Text(
+                        text = "¡Test enviado!",
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Tus respuestas han sido enviadas correctamente. Un especialista revisará tu test y te dará feedback pronto.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.clearSubmitResult()
+                            navController.popBackStack()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = null
+            )
+        } else {
+            ResultDialog(
+                diagnostico = successResult.diagnostico ?: "No disponible",
+                puntaje = successResult.puntaje ?: 0,
+                onDismiss = {
+                    viewModel.clearSubmitResult()
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 
     showErrorDialog?.let { failureResult ->
