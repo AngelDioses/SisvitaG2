@@ -64,9 +64,16 @@ class HistoryViewModel(
         }
         if (_uiState.value.isLoadingFeedback) return
 
+        // Usar el id del item como feedbackId solo si tieneFeedback es true
+        val feedbackId = if (item.tieneFeedback) item.id else null
+        if (feedbackId == null) {
+            _uiState.update { it.copy(selectedItemFeedback = null, isLoadingFeedback = false) }
+            return
+        }
+
         _uiState.update { it.copy(isLoadingFeedback = true, selectedItemFeedback = null, error = null) }
         viewModelScope.launch {
-            val result = historyRepository.getFeedbackDetallado(item.id, item.tipo, currentUserUid)
+            val result = historyRepository.getFeedbackDetallado(feedbackId, item.tipo, currentUserUid)
             result.fold(
                 onSuccess = { feedback ->
                     _uiState.update { it.copy(isLoadingFeedback = false, selectedItemFeedback = feedback) }
