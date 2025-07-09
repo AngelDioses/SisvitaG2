@@ -19,5 +19,8 @@ data class UserProfileData(
     // Campos de ubicación (nombres, no IDs)
     val departamento: String? = "",
     val provincia: String? = "",
-    val distrito: String? = ""
+    val distrito: String? = "",
+    // Nuevos campos para estado y rol
+    val estado: String? = null,
+    val legacyTipoUsuarioId: Int? = null
 )

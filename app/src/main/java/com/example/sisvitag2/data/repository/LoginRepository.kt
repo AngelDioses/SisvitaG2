@@ -4,11 +4,14 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.delay
 
 
 class LoginRepository(
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore
 ) {
 
     companion object {
@@ -42,7 +45,37 @@ class LoginRepository(
             val currentUser = auth.currentUser // Verifica que el usuario actual esté establecido
             if (currentUser != null) {
                 Log.i(TAG, "Inicio de sesión exitoso para UID: ${currentUser.uid}")
-                LoginResult.Success
+                Log.d(TAG, "[DEBUG] isEmailVerified antes de reload: ${currentUser.isEmailVerified}")
+                // Forzar actualización del estado de verificación del correo
+                if (!currentUser.isEmailVerified) {
+                    Log.d(TAG, "Correo no verificado, forzando actualización...")
+                    try {
+                        Log.d(TAG, "[DEBUG] Llamando a reload().await()...")
+                        currentUser.reload().await()
+                        Log.d(TAG, "[DEBUG] reload().await() completado")
+                        // Pequeño delay para asegurar que Firebase se actualice
+                        delay(1000)
+                        Log.d(TAG, "[DEBUG] isEmailVerified después de reload: ${currentUser.isEmailVerified}")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error al actualizar estado de verificación: ${e.message}")
+                    }
+                }
+                Log.d(TAG, "[DEBUG] isEmailVerified FINAL antes de decisión: ${currentUser.isEmailVerified}")
+                // Si el correo está verificado, permitir el login sin importar el estado en Firestore
+                if (currentUser.isEmailVerified) {
+                    Log.d(TAG, "Correo verificado, permitiendo login...")
+                    return LoginResult.Success
+                }
+                
+                // Si el correo no está verificado, validar estado en Firestore
+                val userDoc = firestore.collection("usuarios").document(currentUser.uid).get().await()
+                val estado = userDoc.getString("estado") ?: "pendiente"
+                return when (estado) {
+                    "aprobado" -> LoginResult.Success
+                    "pendiente" -> LoginResult.Success // Permitir login pero mostrar pantalla de espera
+                    "rechazado" -> LoginResult.Failure(LoginError.USER_DISABLED, "Tu cuenta ha sido rechazada.")
+                    else -> LoginResult.Success // Por defecto permitir acceso
+                }
             } else {
                 Log.e(TAG, "Inicio de sesión pareció exitoso pero currentUser es null.")
                 LoginResult.Failure(LoginError.UNKNOWN)

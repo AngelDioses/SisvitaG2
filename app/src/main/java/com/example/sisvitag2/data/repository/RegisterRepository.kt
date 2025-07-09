@@ -3,6 +3,8 @@ package com.example.sisvitag2.data.repository
 import android.util.Log
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.UserProfileChangeRequest
@@ -11,6 +13,7 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.concurrent.CancellationException
 
 // Definición de los resultados y errores del registro
 sealed class RegisterResult {
@@ -38,7 +41,7 @@ class RegisterRepository(
         private const val TAG = "RegisterRepository"
         private const val USERS_COLLECTION = "usuarios"
         private const val UBIGEOS_COLLECTION = "ubigeos"
-        private const val TIPOS_USUARIO_COLLECTION = "tipos_usuario"
+        private const val TIPOS_USUARIO_COLLECTION = "tiposUsuario"
         private const val TIPOS_DOCUMENTO_FIRESTORE_COLLECTION = "tipos_documento"
         private const val GENEROS_FIRESTORE_COLLECTION = "generos"
     }
@@ -92,21 +95,35 @@ class RegisterRepository(
             val provincia = profileDetails["provincia"] as? String ?: ""
             val distrito = profileDetails["distrito"] as? String ?: ""
             Log.d(TAG, "PASO 3: Buscando ubigeoId para: Dpto='$departamento', Prov='$provincia', Dist='$distrito'")
-            val ubigeoId = findUbigeoId(departamento, provincia, distrito)
-            if (ubigeoId == null) {
-                Log.e(TAG, "PASO 3: FALLÓ obtención de ubigeoId. Datos: D='$departamento', P='$provincia', Dt='$distrito'")
-                throw Exception("Ubicación no válida. Revisa departamento, provincia y distrito.")
-            }
-            Log.i(TAG, "PASO 3: ubigeoId ENCONTRADO: $ubigeoId")
 
-            val tipoUsuarioDesc = profileDetails["role_description"] as? String ?: "Paciente"
-            Log.d(TAG, "PASO 3: Buscando tipoUsuarioId para descripción: '$tipoUsuarioDesc'")
-            val tipoUsuarioId = findTipoUsuarioId(tipoUsuarioDesc)
-            if (tipoUsuarioId == null) {
-                Log.e(TAG, "PASO 3: FALLÓ obtención de tipoUsuarioId para '$tipoUsuarioDesc'.")
-                throw Exception("Tipo de usuario ('$tipoUsuarioDesc') no es válido.")
+            var ubigeoId: String? = null
+            try {
+                ubigeoId = findUbigeoId(departamento, provincia, distrito)
+                if (ubigeoId == null) {
+                    Log.e(TAG, "PASO 3: FALLÓ obtención de ubigeoId. Datos: D='$departamento', P='$provincia', Dt='$distrito'")
+                    throw Exception("Ubicación no válida. Revisa departamento, provincia y distrito.")
+                }
+                Log.i(TAG, "PASO 3: ubigeoId ENCONTRADO: $ubigeoId")
+            } catch (e: Exception) {
+                Log.e(TAG, "PASO 3: ERROR obteniendo ubigeoId: ${e.javaClass.simpleName} - ${e.message}", e)
+                throw e
             }
-            Log.i(TAG, "PASO 3: tipoUsuarioId ENCONTRADO: $tipoUsuarioId")
+
+            val tipoUsuarioDesc = profileDetails["role_description"] as? String ?: "Persona"
+            Log.d(TAG, "PASO 3: Buscando tipoUsuarioId para descripción: '$tipoUsuarioDesc'")
+
+            var tipoUsuarioId: String? = null
+            try {
+                tipoUsuarioId = findTipoUsuarioId(tipoUsuarioDesc)
+                if (tipoUsuarioId == null) {
+                    Log.e(TAG, "PASO 3: FALLÓ obtención de tipoUsuarioId para '$tipoUsuarioDesc'.")
+                    throw Exception("Tipo de usuario ('$tipoUsuarioDesc') no es válido.")
+                }
+                Log.i(TAG, "PASO 3: tipoUsuarioId ENCONTRADO: $tipoUsuarioId")
+            } catch (e: Exception) {
+                Log.e(TAG, "PASO 3: ERROR obteniendo tipoUsuarioId: ${e.javaClass.simpleName} - ${e.message}", e)
+                throw e
+            }
 
             Log.d(TAG, "PASO 4: Procesando fecha de nacimiento...")
             val birthDateString = profileDetails["fechanacimiento_str"] as? String
@@ -132,7 +149,9 @@ class RegisterRepository(
                 "ubigeoid" to ubigeoId,
                 "tipo_documento" to (profileDetails["tipo_documento"] as? String ?: ""),
                 "numero_documento" to (profileDetails["numero_documento"] as? String ?: ""),
-                "genero" to (profileDetails["genero"] as? String ?: "")
+                "genero" to (profileDetails["genero"] as? String ?: ""),
+                "estado" to "pendiente",
+                "legacyTipoUsuarioId" to (profileDetails["legacyTipoUsuarioId"] as? Int ?: 1)
             )
             (profileDetails["apellidomaterno"] as? String)?.takeIf { it.isNotBlank() }?.let {
                 userDocumentData["apellidomaterno"] = it
@@ -143,8 +162,25 @@ class RegisterRepository(
             Log.d(TAG, "PASO 5: userDocumentData CONSTRUIDO: $userDocumentData")
 
             Log.i(TAG, "PASO 6: INTENTANDO GUARDAR en Firestore (${USERS_COLLECTION}/${tempFirebaseUser.uid}).")
-            firestore.collection(USERS_COLLECTION).document(tempFirebaseUser.uid).set(userDocumentData).await()
-            Log.i(TAG, "PASO 6: ÉXITO al guardar datos en ${USERS_COLLECTION}/${tempFirebaseUser.uid}.")
+            Log.d(TAG, "PASO 6: Datos a guardar: $userDocumentData")
+            
+            try {
+                firestore.collection(USERS_COLLECTION).document(tempFirebaseUser.uid).set(userDocumentData).await()
+                Log.i(TAG, "PASO 6: ÉXITO al guardar datos en ${USERS_COLLECTION}/${tempFirebaseUser.uid}.")
+                
+                // Verificar que el documento se creó realmente
+                val verificationDoc = firestore.collection(USERS_COLLECTION).document(tempFirebaseUser.uid).get().await()
+                if (verificationDoc.exists()) {
+                    Log.i(TAG, "PASO 6: VERIFICACIÓN EXITOSA - Documento existe en Firestore con datos: ${verificationDoc.data}")
+                } else {
+                    Log.e(TAG, "PASO 6: ERROR - Documento no existe después de guardar")
+                    throw Exception("El documento no se creó en Firestore")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "PASO 6: ERROR al guardar en Firestore: ${e.message}", e)
+                throw e
+            }
+            
             Log.d(TAG, "----------------------------------------------------")
             Log.d(TAG, "FIN PROCESO DE REGISTRO EXITOSO para Email: $email")
             Log.d(TAG, "----------------------------------------------------")
@@ -152,6 +188,14 @@ class RegisterRepository(
 
         } catch (e: Exception) {
             Log.e(TAG, "EXCEPCIÓN GENERAL durante el registro completo: ${e.javaClass.simpleName} - ${e.message}", e)
+            
+            // NO eliminar el usuario si es una cancelación de corrutina (normal durante navegación)
+            if (e is CancellationException) {
+                Log.w(TAG, "Registro cancelado por navegación. NO eliminando usuario de Auth.")
+                return RegisterResult.Failure(RegisterError.UNKNOWN, "Registro cancelado")
+            }
+            
+            // Solo eliminar el usuario para otros tipos de errores
             tempFirebaseUser?.delete()?.addOnCompleteListener { deleteTask ->
                 if (deleteTask.isSuccessful) Log.i(TAG, "Usuario de Auth (si existía) ${tempFirebaseUser?.uid} eliminado después de fallo.")
                 else Log.w(TAG, "No se pudo eliminar usuario de Auth ${tempFirebaseUser?.uid} (si existía) después de fallo.", deleteTask.exception)
