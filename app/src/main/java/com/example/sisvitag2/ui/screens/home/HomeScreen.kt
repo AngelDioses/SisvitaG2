@@ -79,6 +79,14 @@ fun HomeScreen(
         )
 
         HelpMeAdd(navController = navController)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = { navController.navigate("Feedbacks") },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Ver Feedbacks del Especialista")
+        }
     }
 }
 
