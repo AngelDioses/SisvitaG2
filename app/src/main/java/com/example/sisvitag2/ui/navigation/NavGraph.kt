@@ -41,6 +41,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.sisvitag2.ui.screens.account.AdminScreen
+import com.example.sisvitag2.ui.screens.specialist.SpecialistHomeScreen
+import com.example.sisvitag2.ui.screens.specialist.TestListScreen
+import com.example.sisvitag2.ui.screens.specialist.FeedbackHistoryScreen
+import com.example.sisvitag2.ui.screens.specialist.SpecialistTestDetailScreen
+import com.example.sisvitag2.ui.screens.feedback.FeedbackScreen
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 @Composable
 fun PendingApprovalScreen() {
@@ -109,42 +115,50 @@ fun AppNavHost(
         }
     }
 
-    // Redirección global según estado y rol
-    LaunchedEffect(userEstado, userRol) {
-        Log.d("NavGraph", "=== NAVGRAPH LaunchedEffect userEstado/userRol ===")
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route ?: ""
+
+    LaunchedEffect(userEstado, userRol, currentRoute) {
+        Log.d("NavGraph", "=== NAVGRAPH LaunchedEffect userEstado/userRol/currentRoute ===")
         Log.d("NavGraph", "userEstado: '$userEstado'")
         Log.d("NavGraph", "userRol: $userRol")
-        Log.d("NavGraph", "currentDestination: ${navController.currentDestination?.route}")
+        Log.d("NavGraph", "currentBackStackEntry (route): $currentRoute")
         Log.d("NavGraph", "userName: '$userName'")
         // Solo navegar si tenemos datos válidos
         if (userEstado == null || userRol == null) {
             Log.d("NavGraph", "userEstado o userRol es null, esperando datos...")
             return@LaunchedEffect
         }
+        val pantallasPermitidasPersona = listOf("Inicio", "Test", "DoTest", "Feedbacks", "Cuenta", "Necesito ayuda", "Historial")
+        val pantallasPermitidasEspecialista = listOf("Inicio", "Tests Pendientes", "Historial de Feedback", "Cuenta", "DetalleTestEspecialista")
         when (userEstado) {
             "pendiente" -> {
-                if (navController.currentDestination?.route != "Pendiente") {
+                if (currentRoute != "Pendiente") {
                     navController.navigate("Pendiente") {
                         popUpTo(0) { inclusive = true }
                     }
                 }
             }
             "rechazado" -> {
-                if (navController.currentDestination?.route != "Bloqueado") {
+                if (currentRoute != "Bloqueado") {
                     navController.navigate("Bloqueado") {
                         popUpTo(0) { inclusive = true }
                     }
                 }
             }
             "aprobado" -> {
-                // Navegar según el rol
                 when (userRol) {
-                    3 -> if (navController.currentDestination?.route != "Inicio") {
+                    3 -> if (currentRoute != "Inicio") {
                         navController.navigate("Inicio") {
                             popUpTo(0) { inclusive = true }
                         }
                     }
-                    2, 1 -> if (navController.currentDestination?.route != "Inicio") {
+                    2 -> if (pantallasPermitidasEspecialista.none { currentRoute.startsWith(it) }) {
+                        navController.navigate("Inicio") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                    1 -> if (pantallasPermitidasPersona.none { currentRoute.startsWith(it) }) {
                         navController.navigate("Inicio") {
                             popUpTo(0) { inclusive = true }
                         }
@@ -164,7 +178,7 @@ fun AppNavHost(
             Log.d("NavGraph", "userEstado en Inicio: '$userEstado'")
             Log.d("NavGraph", "userName en Inicio: '$userName'")
             Log.d("NavGraph", "userRol en Inicio: $userRol")
-
+            
             // Mostrar loading si el usuario está autenticado pero los datos aún no están listos
             val isAuthenticated = authState is com.example.sisvitag2.ui.vm.AuthState.Authenticated
             if (isAuthenticated && (userRol == null || userEstado == null)) {
@@ -173,31 +187,31 @@ fun AppNavHost(
                 }
                 return@composable
             } else {
-                when (userEstado) {
-                    "aprobado" -> {
+            when (userEstado) {
+                "aprobado" -> {
                         Log.d("NavGraph", "Mostrando pantalla según rol para usuario aprobado")
                         when (userRol) {
                             3 -> AdminScreen() // Administrador
-                            2 -> HomeScreen(navController = navController) // Especialista
+                            2 -> SpecialistHomeScreen() // Especialista
                             1 -> HomeScreen(navController = navController) // Persona
                             else -> HomeScreen(navController = navController)
                         }
-                    }
-                    "pendiente" -> {
-                        Log.d("NavGraph", "Mostrando PendingApprovalScreen para usuario pendiente")
-                        PendingApprovalScreen()
-                    }
-                    "rechazado" -> {
-                        Log.d("NavGraph", "Mostrando AccountBlockedScreen para usuario rechazado")
-                        AccountBlockedScreen()
-                    }
-                    null -> {
-                        Log.d("NavGraph", "userEstado es null, mostrando loading")
-                        androidx.compose.material3.CircularProgressIndicator()
-                    }
-                    else -> {
-                        Log.d("NavGraph", "Estado desconocido '$userEstado', mostrando loading")
-                        androidx.compose.material3.CircularProgressIndicator()
+                }
+                "pendiente" -> {
+                    Log.d("NavGraph", "Mostrando PendingApprovalScreen para usuario pendiente")
+                    PendingApprovalScreen()
+                }
+                "rechazado" -> {
+                    Log.d("NavGraph", "Mostrando AccountBlockedScreen para usuario rechazado")
+                    AccountBlockedScreen()
+                }
+                null -> {
+                    Log.d("NavGraph", "userEstado es null, mostrando loading")
+                    androidx.compose.material3.CircularProgressIndicator()
+                }
+                else -> {
+                    Log.d("NavGraph", "Estado desconocido '$userEstado', mostrando loading")
+                    androidx.compose.material3.CircularProgressIndicator()
                     }
                 }
             }
@@ -216,18 +230,37 @@ fun AppNavHost(
                 PendingApprovalScreen()
             }
         }
-        composable("Bandeja") {
+        composable("Tests Pendientes") {
             if (userRol == 2 && userEstado == "aprobado") {
-                Text("Bandeja de Especialista (en construcción)")
+                TestListScreen(onTestClick = { testId ->
+                    navController.navigate("DetalleTestEspecialista/$testId")
+                })
+            } else {
+                PendingApprovalScreen()
+            }
+        }
+        composable(
+            route = "DetalleTestEspecialista/{testId}",
+            arguments = listOf(navArgument("testId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val testId = backStackEntry.arguments?.getString("testId") ?: ""
+            SpecialistTestDetailScreen(
+                testId = testId,
+                onFeedbackSent = { navController.popBackStack() }
+            )
+        }
+        composable("Historial de Feedback") {
+            if (userRol == 2 && userEstado == "aprobado") {
+                FeedbackHistoryScreen()
             } else {
                 PendingApprovalScreen()
             }
         }
         composable("Necesito ayuda") {
             if (userEstado == "aprobado" && userRol == 1) {
-                HelpMeNavHost(
-                    rootNavController = navController
-                )
+            HelpMeNavHost(
+                rootNavController = navController
+            )
             } else {
                 PendingApprovalScreen()
             }
@@ -275,6 +308,9 @@ fun AppNavHost(
             }
         }
         // ***** FIN DE NUEVAS RUTAS *****
+        composable("Feedbacks") {
+            FeedbackScreen()
+        }
     }
 }
 
