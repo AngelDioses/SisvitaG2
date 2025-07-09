@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
+import com.google.firebase.auth.FirebaseAuth
 
 // Añade el nuevo error al enum
 // enum SubmitTestError { ALL_QUESTIONS_NOT_ANSWERED, INVALID_RESPONSE, FUNCTION_CALL_FAILED, UNKNOWN }
@@ -145,10 +146,31 @@ class TestViewModel(
 
         _uiState.update { it.copy(isSubmitting = true, submitResult = null) }
         viewModelScope.launch {
-            Log.d("TestViewModel", "Enviando TestSubmission: $testSubmission")
-            val result = testRepository.submitTest(testSubmission)
+            try {
+                // Obtener información del usuario actual
+                val user = FirebaseAuth.getInstance().currentUser
+                val currentTest = currentUiState.tests.find { it.id == testSubmission.testId }
+                
+                // Crear TestSubmission con todos los datos necesarios
+                val completeTestSubmission = testSubmission.copy(
+                    testName = currentTest?.nombre ?: "",
+                    userId = user?.uid ?: "",
+                    userName = user?.displayName ?: user?.email ?: "",
+                    userEmail = user?.email ?: ""
+                )
+                
+                Log.d("TestViewModel", "Enviando TestSubmission completo: $completeTestSubmission")
+                val result = testRepository.submitTest(completeTestSubmission)
             Log.d("TestViewModel", "Resultado del envío: $result")
             _uiState.update { it.copy(submitResult = result, isSubmitting = false) }
+                
+            } catch (e: Exception) {
+                Log.e("TestViewModel", "Error al enviar test: ${e.message}")
+                _uiState.update { it.copy(
+                    submitResult = SubmitTestResult.Failure(SubmitTestError.FUNCTION_CALL_FAILED, e.message),
+                    isSubmitting = false
+                ) }
+            }
         }
     }
 
