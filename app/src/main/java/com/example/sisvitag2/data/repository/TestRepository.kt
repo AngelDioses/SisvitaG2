@@ -5,17 +5,21 @@ import com.example.sisvitag2.data.model.Pregunta
 import com.example.sisvitag2.data.model.Respuesta
 import com.example.sisvitag2.data.model.Test
 import com.example.sisvitag2.data.model.TestSubmission
+import com.example.sisvitag2.data.model.SpecialistTestSubmission
+import com.example.sisvitag2.data.model.TestAnswer
+import com.example.sisvitag2.data.model.TestStatus
+import com.example.sisvitag2.data.model.HistorialItemPaciente
+import com.example.sisvitag2.data.model.HistorialTipo
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.firestore.ktx.toObjects
-import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.tasks.await
 import java.util.concurrent.ConcurrentHashMap
+import com.google.firebase.Timestamp
 
 class TestRepository(
-    private val firestore: FirebaseFirestore,
-    private val functions: FirebaseFunctions
+    private val firestore: FirebaseFirestore
 ) {
 
     companion object {
@@ -24,8 +28,8 @@ class TestRepository(
         private const val TESTS_COLLECTION = "tests"
         private const val PREGUNTAS_COLLECTION = "preguntas"
         private const val RESPUESTAS_COLLECTION = "respuestas"
-        // Nombre de la Cloud Function para enviar resultados
-        private const val SUBMIT_TEST_FUNCTION = "submitTestResults"
+        private const val TEST_SUBMISSIONS_COLLECTION = "test_submissions"
+        private const val USER_HISTORY_COLLECTION = "user_history"
     }
 
     // Firestore tiene caché offline, pero esto evita lecturas repetidas en la misma sesión.
@@ -121,55 +125,62 @@ class TestRepository(
     }
 
     /**
-     * Envía los resultados de un test completado a una Cloud Function para procesamiento.
+     * Envía los resultados de un test completado directamente a Firestore.
      *
      * @param testSubmission Objeto que contiene el ID del test y las respuestas del usuario
-     *                       (asegúrate de que use IDs de String como definimos en el modelo adaptado).
-     * @return Un SubmitTestResult indicando éxito (con diagnóstico/puntaje si la función los devuelve) o el tipo de error.
+     * @return Un SubmitTestResult indicando éxito o el tipo de error.
      */
     suspend fun submitTest(testSubmission: TestSubmission): SubmitTestResult {
-        // 1. Prepara los datos para la Cloud Function
-        // Convierte el objeto TestSubmission a un Map que la función pueda entender.
-        // El UID del usuario se obtiene implícitamente en la función.
-        val data = mapOf(
-            "testId" to testSubmission.testId,
-            "respuestas" to testSubmission.respuestas.map { mapOf("preguntaId" to it.preguntaId, "respuestaId" to it.respuestaId) }
-        )
-
-        Log.d(TAG, "Llamando a Cloud Function: $SUBMIT_TEST_FUNCTION con datos: $data")
+        Log.d(TAG, "Guardando test submission directamente en Firestore: $testSubmission")
 
         return try {
-            // 2. Llama a la Cloud Function (HTTPS Callable)
-            val result = functions
-                .getHttpsCallable(SUBMIT_TEST_FUNCTION)
-                .call(data)
+            // 1. Guardar en test_submissions para el especialista
+            val specialistSubmission = SpecialistTestSubmission(
+                userId = testSubmission.userId,
+                userName = testSubmission.userName,
+                testType = testSubmission.testId,
+                answers = testSubmission.respuestas.mapIndexed { index, respuesta ->
+                    TestAnswer(
+                        questionId = index + 1,
+                        questionText = "",
+                        answer = respuesta.respuestaId.toIntOrNull() ?: 0,
+                        answerText = respuesta.respuestaId
+                    )
+                },
+                totalScore = 0,
+                submissionDate = Timestamp.now(),
+                status = TestStatus.PENDING
+            )
+            
+            firestore.collection(TEST_SUBMISSIONS_COLLECTION)
+                .add(specialistSubmission)
                 .await()
 
-            // 3. Procesa la respuesta de la Cloud Function
-            val resultMap = result.data as? Map<String, Any>
-            if (resultMap != null) {
-                Log.d(TAG, "Respuesta recibida de $SUBMIT_TEST_FUNCTION: $resultMap")
-                // Extrae diagnóstico y puntaje (si la función los devuelve)
-                val diagnostico = resultMap["diagnostico"] as? String
-                val puntaje = (resultMap["puntaje"] as? Number)?.toInt() // Convierte Number a Int
+            // 2. Guardar en user_history para el historial del usuario
+            val historyItem = HistorialItemPaciente(
+                id = testSubmission.testId,
+                tipo = HistorialTipo.TEST_PSICOLOGICO,
+                nombreActividad = testSubmission.testName,
+                fechaRealizacion = Timestamp.now(),
+                tieneFeedback = false
+            )
+            
+            firestore.collection(USER_HISTORY_COLLECTION)
+                .document(testSubmission.userId)
+                .collection("tests")
+                .add(historyItem)
+                .await()
 
-                // --- NO actualizar UserSession ---
-                // El ViewModel que llame a esto recibirá el resultado
-                // y decidirá cómo mostrarlo o almacenarlo temporalmente.
-
-                SubmitTestResult.Success(diagnostico, puntaje)
-
-            } else {
-                Log.e(TAG, "Respuesta de $SUBMIT_TEST_FUNCTION no es un mapa válido: ${result.data}")
-                SubmitTestResult.Failure(SubmitTestError.INVALID_RESPONSE, "Respuesta inesperada del servidor.")
-            }
+            Log.d(TAG, "Test submission guardado exitosamente en Firestore")
+            SubmitTestResult.Success(null, null)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error llamando a Cloud Function $SUBMIT_TEST_FUNCTION", e)
-            // Aquí podrías intentar mapear 'e' a errores más específicos si es una HttpsException
+            Log.e(TAG, "Error guardando test submission en Firestore", e)
             SubmitTestResult.Failure(SubmitTestError.FUNCTION_CALL_FAILED, e.message)
         }
     }
+
+
 
     /**
      * Limpia las cachés en memoria. Puede ser útil al hacer logout o refrescar datos manualmente.
