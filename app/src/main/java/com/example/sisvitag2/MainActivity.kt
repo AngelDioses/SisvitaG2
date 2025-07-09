@@ -16,6 +16,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
@@ -45,6 +51,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d("MainActivity", "=== MAINACTIVITY ONCREATE ===")
         try {
             enableEdgeToEdge()
         } catch (e: Exception) {
@@ -56,12 +63,18 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            Log.d("MainActivity", "=== SETCONTENT LLAMADO ===")
             SisvitaG2Theme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AuthDecisionRoot()
+                    val sessionViewModel: SessionViewModel = koinViewModel()
+                    val authState by sessionViewModel.authState
+                    // Usar un key para forzar recomposición total al cambiar el estado de autenticación
+                    androidx.compose.runtime.key(authState) {
+                        AuthDecisionRoot()
+                    }
                 }
             }
         }
@@ -70,34 +83,40 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AuthDecisionRoot() {
+    Log.d("MainActivity", "=== AUTH DECISION ROOT ===")
     val sessionViewModel: SessionViewModel = koinViewModel()
-    val authState by sessionViewModel.authState.collectAsState()
+    val authState by sessionViewModel.authState
     val globalNavController = rememberNavController()
 
     Log.d("AuthDecisionRoot", "Estado de autenticación actual: $authState")
 
     when (val currentAuthState = authState) {
         is AuthState.Loading -> {
+            Log.d("AuthDecisionRoot", "=== ESTADO LOADING ===")
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         }
         is AuthState.Authenticated -> {
-            if (!currentAuthState.user.isEmailVerified) {
-                Log.d("AuthDecisionRoot", "Usuario ${currentAuthState.user.email} autenticado PERO correo no verificado. Mostrando AuthNavHost con inicio en EmailVerificationRoute.")
+            Log.d("AuthDecisionRoot", "=== ESTADO AUTHENTICATED ===")
+            val user = currentAuthState.user
+            
+            if (!user.isEmailVerified) {
+                Log.d("AuthDecisionRoot", "Usuario ${user.email} autenticado PERO correo no verificado. Mostrando AuthNavHost con inicio en EmailVerificationRoute.")
                 AuthNavHost(navController = globalNavController, startDestination = "EmailVerificationRoute")
             } else {
-                Log.d("AuthDecisionRoot", "Usuario ${currentAuthState.user.email} autenticado Y VERIFICADO. Mostrando AppScaffold.")
-                val userName by sessionViewModel.userName.collectAsState()
+                Log.d("AuthDecisionRoot", "Usuario ${user.email} autenticado Y VERIFICADO. Mostrando AppScaffold.")
                 AppScaffoldComponent(
-                    userName = userName ?: "Bienvenido/a",
-                    onLogout = { sessionViewModel.signOut() },
+                    onLogout = {
+                        sessionViewModel.signOut()
+                        // Eliminada la navegación manual a LoginRoute
+                    },
                     navController = globalNavController
                 )
-                // AppNavHost es llamado DENTRO de AppScaffoldComponent
             }
         }
         is AuthState.Unauthenticated -> {
+            Log.d("AuthDecisionRoot", "=== ESTADO UNAUTHENTICATED ===")
             Log.d("AuthDecisionRoot", "Usuario no autenticado. Mostrando AuthNavHost con inicio en LoginRoute.")
             AuthNavHost(navController = globalNavController, startDestination = "LoginRoute")
         }
