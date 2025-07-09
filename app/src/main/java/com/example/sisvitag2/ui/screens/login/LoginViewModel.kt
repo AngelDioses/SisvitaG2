@@ -22,6 +22,9 @@ class LoginViewModel (
     private val loginRepository: LoginRepository
 ) : ViewModel() {
 
+    // Función para notificar cambios de autenticación
+    var onAuthStateChanged: (() -> Unit)? = null
+
     private val _loginUiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
     val loginUiState: StateFlow<LoginUiState> = _loginUiState.asStateFlow()
 
@@ -37,6 +40,8 @@ class LoginViewModel (
                 is LoginResult.Success -> {
                     Log.i("LoginViewModel", "Login exitoso recibido del repositorio.")
                     _loginUiState.value = LoginUiState.Success
+                    // Notificar cambio de estado de autenticación
+                    onAuthStateChanged?.invoke()
                 }
                 is LoginResult.Failure -> {
                     Log.w("LoginViewModel", "Login fallido: ${result.errorType} - ${result.message}")

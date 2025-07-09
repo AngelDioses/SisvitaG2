@@ -76,7 +76,9 @@ class EmailVerificationViewModel(
         _verificationState.value = EmailVerificationState.Checking
         // Recargar el estado del usuario desde Firebase para obtener la información más reciente
         user.reload().addOnCompleteListener { reloadTask ->
+            Log.d(TAG, "[DEBUG] Llamando a reload() en checkEmailVerificationStatus...")
             if (reloadTask.isSuccessful) {
+                Log.d(TAG, "[DEBUG] reload() completado. isEmailVerified: ${user.isEmailVerified}")
                 if (user.isEmailVerified) {
                     Log.d(TAG, "Correo verificado para ${user.email}")
                     _verificationState.value = EmailVerificationState.Verified
@@ -113,7 +115,9 @@ class EmailVerificationViewModel(
                 }
                 // Recargar y comprobar
                 user.reload().addOnCompleteListener { task ->
+                    Log.d(TAG, "[DEBUG] Llamando a reload() en polling...")
                     if (task.isSuccessful && user.isEmailVerified) {
+                        Log.d(TAG, "[DEBUG] reload() completado en polling. isEmailVerified: ${user.isEmailVerified}")
                         _verificationState.value = EmailVerificationState.Verified
                         stopPollingEmailVerificationStatus()
                     } else if (!task.isSuccessful) {

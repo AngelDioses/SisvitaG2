@@ -12,6 +12,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -40,12 +44,18 @@ data class DropdownDataState(
 class RegisterViewModel(
     private val registerRepository: RegisterRepository
 ) : ViewModel() {
+    
+    // Función para notificar cambios de autenticación
+    var onAuthStateChanged: (() -> Unit)? = null
 
     private val _registerUiState = MutableStateFlow<RegisterUiState>(RegisterUiState.Idle)
     val registerUiState: StateFlow<RegisterUiState> = _registerUiState.asStateFlow()
 
     private val _dropdownDataState = MutableStateFlow(DropdownDataState())
     val dropdownDataState: StateFlow<DropdownDataState> = _dropdownDataState.asStateFlow()
+
+    // Scope independiente que no se cancela con el ViewModel
+    private val independentScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object { private const val TAG = "RegisterViewModel" }
 
@@ -142,18 +152,43 @@ class RegisterViewModel(
             return
         }
 
+        // Aquí deberías asegurarte de que el formData contiene legacyTipoUsuarioId
+        // Por ejemplo, si tienes un campo 'rol' en el formulario:
+        // val legacyTipoUsuarioId = if (formData["rol"] == "Especialista") 2 else 1
+        // y luego agregarlo al formData
+        //
+        // Si ya lo tienes, omite este bloque. Si no, puedes hacer:
+        val legacyTipoUsuarioId = when (formData["rol"] as? String) {
+            "Especialista" -> 2
+            else -> 1 // Por defecto Persona
+        }
+        val formDataWithRole = formData.toMutableMap().apply { put("legacyTipoUsuarioId", legacyTipoUsuarioId) }
+
         _registerUiState.value = RegisterUiState.Registering
         Log.d(TAG, "performRegistration: ViewModel iniciando corutina de registro.")
-        viewModelScope.launch {
-            val result = registerRepository.register(email, password, formData)
-            Log.d(TAG, "performRegistration: Resultado del repositorio: $result")
-            when (result) {
-                is RegisterResult.Success -> {
-                    _registerUiState.value = RegisterUiState.Success("Usuario registrado. Revisa tu correo para verificar tu cuenta.")
+        
+        // Usar scope independiente para el registro
+        independentScope.launch {
+            try {
+                // Pequeño delay para evitar cancelaciones prematuras
+                delay(100)
+                
+                val result = registerRepository.register(email, password, formDataWithRole)
+                Log.d(TAG, "performRegistration: Resultado del repositorio: $result")
+                
+                when (result) {
+                    is RegisterResult.Success -> {
+                        _registerUiState.value = RegisterUiState.Success("Usuario registrado. Revisa tu correo para verificar tu cuenta.")
+                        // Notificar cambio de estado de autenticación
+                        onAuthStateChanged?.invoke()
+                    }
+                    is RegisterResult.Failure -> {
+                        _registerUiState.value = RegisterUiState.Error(result.errorType, result.message)
+                    }
                 }
-                is RegisterResult.Failure -> {
-                    _registerUiState.value = RegisterUiState.Error(result.errorType, result.message)
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "performRegistration: Error inesperado", e)
+                _registerUiState.value = RegisterUiState.Error(RegisterError.UNKNOWN, "Error inesperado durante el registro")
             }
         }
     }

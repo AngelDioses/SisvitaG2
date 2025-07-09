@@ -11,6 +11,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +23,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,6 +31,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.rememberNavController
 import com.example.sisvitag2.ui.theme.SisvitaG2Theme
+import com.example.sisvitag2.ui.vm.SessionViewModel
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -37,8 +41,16 @@ import java.util.Locale
 @Composable
 fun RegisterScreen(
     navController: NavController,
-    viewModel: RegisterViewModel = koinViewModel() // ViewModel del mensaje anterior (sin Channel)
+    viewModel: RegisterViewModel = koinViewModel(),
+    sessionViewModel: SessionViewModel = koinViewModel()
 ) {
+    // Conectar el callback para actualizar SessionViewModel
+    LaunchedEffect(Unit) {
+        viewModel.onAuthStateChanged = {
+            // Forzar actualización del SessionViewModel
+            sessionViewModel.fetchUserNameData(sessionViewModel.auth.currentUser)
+        }
+    }
     val registerUiState by viewModel.registerUiState.collectAsState()
     val dropdownsState by viewModel.dropdownDataState.collectAsState()
     val context = LocalContext.current
@@ -46,6 +58,7 @@ fun RegisterScreen(
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     var middleName by remember { mutableStateOf("") }
@@ -78,21 +91,24 @@ fun RegisterScreen(
 
     val isRegistering = registerUiState is RegisterUiState.Registering
 
-    // Este LaunchedEffect SÓLO se encarga de mostrar Toasts y resetear el estado del ViewModel.
-    // NO se encarga de la navegación después de un registro exitoso.
+    // Este LaunchedEffect se encarga de mostrar Toasts y navegar automáticamente
     LaunchedEffect(registerUiState) {
         when (val state = registerUiState) {
             is RegisterUiState.Success -> {
+                Log.d("RegisterScreen", "Registro exitoso detectado. Mostrando Toast y navegando...")
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
-                // La navegación a EmailVerificationScreen será manejada por AuthDecisionRoot
-                // cuando SessionViewModel detecte el nuevo usuario autenticado (pero no verificado).
-                viewModel.resetRegisterState() // Resetear el estado del RegisterViewModel
+                
+                // Navegar automáticamente a la pantalla principal
+                navController.navigate("Inicio") {
+                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                }
             }
             is RegisterUiState.Error -> {
-                Toast.makeText(context, state.message ?: "Error desconocido en el registro.", Toast.LENGTH_LONG).show()
+                Log.e("RegisterScreen", "Error en registro: ${state.message}")
+                Toast.makeText(context, state.message ?: "Error desconocido", Toast.LENGTH_LONG).show()
                 viewModel.resetRegisterState()
             }
-            else -> { /* No-op para Idle, LoadingInitialData, Registering aquí */ }
+            else -> { /* Otros estados no requieren acción */ }
         }
     }
 
@@ -123,7 +139,23 @@ fun RegisterScreen(
         Text("Crear Cuenta", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 16.dp).align(Alignment.CenterHorizontally))
 
         OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Correo *") }, enabled = !isRegistering, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next))
-        OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Contraseña *") }, visualTransformation = PasswordVisualTransformation(), enabled = !isRegistering, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next))
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Contraseña *") },
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                        imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+                    )
+                }
+            },
+            enabled = !isRegistering,
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next)
+        )
         OutlinedTextField(value = firstName, onValueChange = { firstName = it }, label = { Text("Nombre(s) *") }, enabled = !isRegistering, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(value = lastName, onValueChange = { lastName = it }, label = { Text("A. Paterno *") }, enabled = !isRegistering, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next))
@@ -186,7 +218,7 @@ fun RegisterScreen(
                     formDataForViewModel["provincia"] = province
                     formDataForViewModel["distrito"] = district
                     formDataForViewModel["fechanacimiento_str"] = birthDate
-                    formDataForViewModel["role_description"] = "Paciente"
+                    formDataForViewModel["role_description"] = "Persona"
                     viewModel.performRegistration(formDataForViewModel.toMap())
                 }
             },

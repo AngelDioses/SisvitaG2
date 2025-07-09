@@ -8,6 +8,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +25,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +35,7 @@ import com.example.sisvitag2.R
 import com.example.sisvitag2.data.repository.LoginError
 import com.example.sisvitag2.ui.theme.SisvitaG2Theme
 import com.example.sisvitag2.ui.theme.philosopherBold
+import com.example.sisvitag2.ui.vm.SessionViewModel
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -39,18 +44,31 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit = {}
 ) {
     val viewModel: LoginViewModel = koinViewModel()
+    val sessionViewModel: SessionViewModel = koinViewModel()
+    
+    // Conectar el callback para actualizar SessionViewModel
+    LaunchedEffect(Unit) {
+        viewModel.onAuthStateChanged = {
+            // Forzar actualización de datos del usuario tras login exitoso
+            sessionViewModel.fetchUserNameData(sessionViewModel.auth.currentUser)
+            Log.d("LoginScreen", "Login exitoso - Forzando recarga de datos de usuario en SessionViewModel")
+        }
+    }
     val loginUiState by viewModel.loginUiState.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     val passwordFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(loginUiState) {
         when (val state = loginUiState) {
             is LoginUiState.Success -> {
                 Log.d("LoginScreen", "Login Success UI detectado por LoginScreen")
+                // Forzar actualización del estado de autenticación
+                Log.d("LoginScreen", "Forzando actualización del estado de autenticación...")
                 onLoginSuccess()
                 viewModel.resetState()
             }
@@ -112,7 +130,15 @@ fun LoginScreen(
             value = password,
             onValueChange = { password = it },
             label = { Text("Contraseña") },
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                        imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+                    )
+                }
+            },
             modifier = Modifier.fillMaxWidth().focusRequester(passwordFocusRequester),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),

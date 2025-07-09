@@ -25,8 +25,15 @@ sealed class AccountUiState {
 
 class AccountViewModel(
     private val accountRepository: AccountRepository,
-    private val auth: FirebaseAuth // Inyectar FirebaseAuth para obtener el UID
+    private val auth: FirebaseAuth, // Inyectar FirebaseAuth para obtener el UID
+    private val sessionViewModel: SessionViewModel // Inyectar SessionViewModel directamente
 ) : ViewModel() {
+    
+    // Callback para notificar cambios al SessionViewModel
+    var onProfileUpdated: (() -> Unit)? = null
+    
+    // Eliminamos la referencia manual ya que ahora viene por inyección
+    // var sessionViewModel: SessionViewModel? = null
 
     private val _uiState = MutableStateFlow<AccountUiState>(AccountUiState.Idle)
     val uiState: StateFlow<AccountUiState> = _uiState.asStateFlow()
@@ -36,7 +43,7 @@ class AccountViewModel(
     }
 
     init {
-        Log.d(TAG, "AccountViewModel inicializado.")
+        Log.d(TAG, "=== ACCOUNTVIEWMODEL INICIALIZADO ===")
         loadUserProfile()
     }
 
@@ -50,7 +57,11 @@ class AccountViewModel(
             result.fold(
                 onSuccess = { userProfile ->
                     Log.i(TAG, "Perfil de usuario cargado: ${userProfile.displayName}")
-                    _uiState.value = AccountUiState.ProfileLoaded(userProfile)
+                    // Tomar estado y rol del SessionViewModel
+                    val estado = sessionViewModel.userEstado.value
+                    val rol = sessionViewModel.userRol.value
+                    val userProfileWithEstado = userProfile.copy(estado = estado, legacyTipoUsuarioId = rol)
+                    _uiState.value = AccountUiState.ProfileLoaded(userProfileWithEstado)
                 },
                 onFailure = { exception ->
                     Log.e(TAG, "Error al cargar perfil de usuario.", exception)
@@ -67,35 +78,70 @@ class AccountViewModel(
             return
         }
         if (dataToUpdate.isEmpty()) {
-            // Opcional: puedes emitir un mensaje de éxito si no hay nada que cambiar o simplemente no hacer nada.
-            // _uiState.value = AccountUiState.UpdateSuccess("No hay cambios para guardar.")
             return
         }
 
+        Log.d(TAG, "Iniciando actualización de datos personales para usuario: $currentUserId")
+        Log.d(TAG, "Datos a actualizar: $dataToUpdate")
+        
         _uiState.value = AccountUiState.UpdatingProfile
         viewModelScope.launch {
-            val result = accountRepository.updateUserPersonalData(currentUserId, dataToUpdate)
-            result.fold(
-                onSuccess = {
-                    Log.i(TAG, "Datos personales actualizados exitosamente.")
-                    // Volver a cargar el perfil para reflejar los cambios
-                    val updatedProfileResult = accountRepository.getUserProfile()
-                    updatedProfileResult.fold(
-                        onSuccess = { newProfile ->
-                            _uiState.value = AccountUiState.UpdateSuccess("Perfil actualizado con éxito.", newProfile)
-                        },
-                        onFailure = {
-                            _uiState.value = AccountUiState.UpdateSuccess("Perfil actualizado, pero error al recargar.")
-                        }
-                    )
-                },
-                onFailure = { exception ->
-                    Log.e(TAG, "Error actualizando datos personales.", exception)
-                    _uiState.value = AccountUiState.Error(exception.message ?: "No se pudieron guardar los cambios.")
-                    // Recargar el perfil original si la actualización falla para revertir la UI al estado anterior
-                    loadUserProfile()
-                }
-            )
+            try {
+                Log.d(TAG, "Llamando a accountRepository.updateUserPersonalData...")
+                val result = accountRepository.updateUserPersonalData(currentUserId, dataToUpdate)
+                Log.d(TAG, "Resultado de updateUserPersonalData: $result")
+                
+                result.fold(
+                    onSuccess = {
+                        Log.i(TAG, "Datos personales actualizados exitosamente.")
+                        // Recargar el perfil para reflejar los cambios
+                        Log.d(TAG, "Recargando perfil después de actualización...")
+                        reloadProfileAfterUpdate()
+                    },
+                    onFailure = { exception ->
+                        Log.e(TAG, "Error actualizando datos personales.", exception)
+                        _uiState.value = AccountUiState.Error(exception.message ?: "No se pudieron guardar los cambios.")
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Excepción inesperada durante actualización", e)
+                _uiState.value = AccountUiState.Error("Error inesperado: ${e.message}")
+            }
+        }
+    }
+    
+    private fun reloadProfileAfterUpdate() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Recargando perfil...")
+                val result = accountRepository.getUserProfile()
+                result.fold(
+                    onSuccess = { userProfile ->
+                        Log.i(TAG, "Perfil recargado exitosamente después de actualización: ${userProfile.displayName}")
+                        _uiState.value = AccountUiState.UpdateSuccess("Perfil actualizado con éxito.", userProfile)
+                        // Notificar al SessionViewModel que el perfil se actualizó
+                        Log.d(TAG, "Invocando callback onProfileUpdated...")
+                        onProfileUpdated?.invoke()
+                        Log.d(TAG, "Callback onProfileUpdated ejecutado.")
+                        
+                        // Forzar actualización del SessionViewModel usando el nuevo método
+                        Log.d(TAG, "Forzando actualización del SessionViewModel...")
+                        sessionViewModel.forceUpdateUserName()
+                        
+                        // Esperar un poco y forzar otra actualización para asegurar que se actualice
+                        kotlinx.coroutines.delay(500)
+                        sessionViewModel.forceUpdateUserName()
+                        Log.d(TAG, "SessionViewModel actualizado completamente.")
+                    },
+                    onFailure = { exception ->
+                        Log.e(TAG, "Error recargando perfil después de actualización", exception)
+                        _uiState.value = AccountUiState.Error("Perfil actualizado pero error al recargar: ${exception.message}")
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Excepción recargando perfil", e)
+                _uiState.value = AccountUiState.Error("Error recargando perfil: ${e.message}")
+            }
         }
     }
 
@@ -108,27 +154,23 @@ class AccountViewModel(
 
         _uiState.value = AccountUiState.UpdatingProfile
         viewModelScope.launch {
-            val result = accountRepository.updateUserProfilePicture(currentUserId, imageUri)
-            result.fold(
-                onSuccess = { downloadUrl ->
-                    Log.i(TAG, "Foto de perfil actualizada. Nueva URL: $downloadUrl")
-                    // Volver a cargar el perfil para reflejar el cambio de foto
-                    val updatedProfileResult = accountRepository.getUserProfile()
-                    updatedProfileResult.fold(
-                        onSuccess = { newProfile ->
-                            _uiState.value = AccountUiState.UpdateSuccess("Foto de perfil actualizada.", newProfile)
-                        },
-                        onFailure = {
-                            _uiState.value = AccountUiState.UpdateSuccess("Foto actualizada, pero error al recargar perfil.")
-                        }
-                    )
-                },
-                onFailure = { exception ->
-                    Log.e(TAG, "Error actualizando foto de perfil.", exception)
-                    _uiState.value = AccountUiState.Error(exception.message ?: "No se pudo cambiar la foto.")
-                    loadUserProfile() // Reintentar cargar el perfil original
-                }
-            )
+            try {
+                val result = accountRepository.updateUserProfilePicture(currentUserId, imageUri)
+                result.fold(
+                    onSuccess = { downloadUrl ->
+                        Log.i(TAG, "Foto de perfil actualizada. Nueva URL: $downloadUrl")
+                        // Volver a cargar el perfil para reflejar el cambio de foto
+                        reloadProfileAfterUpdate()
+                    },
+                    onFailure = { exception ->
+                        Log.e(TAG, "Error actualizando foto de perfil.", exception)
+                        _uiState.value = AccountUiState.Error(exception.message ?: "No se pudo cambiar la foto.")
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Excepción inesperada durante actualización de foto", e)
+                _uiState.value = AccountUiState.Error("Error inesperado: ${e.message}")
+            }
         }
     }
 
