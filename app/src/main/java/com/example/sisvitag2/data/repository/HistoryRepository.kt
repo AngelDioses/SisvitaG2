@@ -129,23 +129,21 @@ class HistoryRepository(
     // Nueva función para obtener el feedback detallado de un ítem específico
     suspend fun getFeedbackDetallado(itemId: String, itemType: HistorialTipo, personaId: String): Result<FeedbackDetallado?> {
         return try {
-            val observacionSnapshot = firestore.collection(OBSERVACIONES_COLLECTION)
-                .whereEqualTo("itemId", itemId)
-                .whereEqualTo("itemType", itemType.name) // Comparar con el .name del enum
-                .whereEqualTo("personaId", personaId) // Asegurar que es para este paciente
-                .orderBy("fechaObservacion", Query.Direction.DESCENDING) // Tomar el más reciente
-                .limit(1).get().await()
-
-            if (!observacionSnapshot.isEmpty) {
-                val doc = observacionSnapshot.documents.first()
+            // Buscar en specialist_feedback por id = feedbackId (itemId)
+            val doc = firestore.collection("specialist_feedback").document(itemId).get().await()
+            if (doc.exists()) {
+                val observacion = doc.getString("assessment")
+                val recomendacion = doc.get("recommendations") as? List<*>
+                val recomendacionStr = recomendacion?.joinToString("\n") { it.toString() }
+                val fechaFeedback = doc.getTimestamp("feedbackDate")
                 val feedback = FeedbackDetallado(
-                    observacion = doc.getString("observacion"),
-                    recomendacion = doc.getString("recomendacion"),
-                    fechaFeedback = doc.getTimestamp("fechaObservacion")
+                    observacion = observacion,
+                    recomendacion = recomendacionStr,
+                    fechaFeedback = fechaFeedback
                 )
                 Result.success(feedback)
             } else {
-                Result.success(null) // No hay feedback
+                Result.success(null)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error obteniendo feedback detallado para $itemId", e)
