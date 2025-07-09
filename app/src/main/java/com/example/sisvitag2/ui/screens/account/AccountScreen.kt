@@ -32,20 +32,32 @@ import com.example.sisvitag2.data.model.UserProfileData
 import com.example.sisvitag2.ui.theme.SisvitaG2Theme
 import com.example.sisvitag2.ui.vm.AccountUiState
 import com.example.sisvitag2.ui.vm.AccountViewModel
+import com.example.sisvitag2.ui.vm.SessionViewModel
 import org.koin.androidx.compose.koinViewModel
+import org.koin.androidx.compose.get
 import android.util.Log
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountScreen(
     navController: NavController, // <--- AÑADIDO para navegar a EditProfileScreen
-    viewModel: AccountViewModel = koinViewModel()
+    viewModel: AccountViewModel = koinViewModel(),
+    sessionViewModel: SessionViewModel = get() // Observar SessionViewModel para actualizaciones
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val userName by sessionViewModel.userName // Observar cambios en el nombre del usuario
 
     LaunchedEffect(Unit) {
         if (uiState is AccountUiState.Idle) {
             Log.d("AccountScreen", "Estado Idle, llamando a loadUserProfile.")
+            viewModel.loadUserProfile()
+        }
+    }
+
+    // Recargar el perfil cuando el nombre cambie en SessionViewModel
+    LaunchedEffect(userName) {
+        if (userName != null) {
+            Log.d("AccountScreen", "Nombre actualizado en SessionViewModel: $userName, recargando perfil...")
             viewModel.loadUserProfile()
         }
     }
@@ -71,11 +83,8 @@ fun AccountScreen(
                 is AccountUiState.LoadingProfile, AccountUiState.Idle -> { // Agrupar Loading e Idle para mostrar loader
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
-                is AccountUiState.ProfileLoaded -> { // Cambiado de Success a ProfileLoaded
-                    UserProfileContent(
-                        userProfile = state.userProfile,
-                        navController = navController // <--- Pasar NavController
-                    )
+                is AccountUiState.ProfileLoaded -> { // Mostrar perfil cargado
+                    UserProfileContent(userProfile = state.userProfile, navController = navController)
                 }
                 is AccountUiState.UpdateSuccess -> { // Si hubo una actualización y se recargó el perfil
                     state.updatedProfile?.let {
@@ -133,10 +142,34 @@ fun UserProfileContent(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Mostrar nombre completo debajo de la foto, evitando 'null'
+        val nombreCompleto = listOfNotNull(
+            userProfile.nombre?.takeIf { it.isNotBlank() },
+            userProfile.apellidoPaterno?.takeIf { it.isNotBlank() }
+        ).joinToString(" ")
+
         Text(
-            text = userProfile.displayName ?: "Nombre no disponible",
+            text = if (nombreCompleto.isNotBlank()) nombreCompleto else "Nombre no disponible",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
+        )
+        // Mostrar el estado debajo del nombre
+        val estadoTexto = when (userProfile.estado) {
+            "aprobado" -> "Estado: Aprobado"
+            "pendiente" -> "Estado: Pendiente de aprobación"
+            "rechazado" -> "Estado: Rechazado"
+            else -> "Estado: Desconocido"
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = estadoTexto,
+            style = MaterialTheme.typography.bodyMedium,
+            color = when (userProfile.estado) {
+                "aprobado" -> MaterialTheme.colorScheme.primary
+                "pendiente" -> MaterialTheme.colorScheme.secondary
+                "rechazado" -> MaterialTheme.colorScheme.error
+                else -> MaterialTheme.colorScheme.onSurface
+            }
         )
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -165,7 +198,7 @@ fun UserProfileContent(
         }
         Spacer(modifier = Modifier.height(12.dp))
         OutlinedButton(
-            onClick = { /* TODO: Implementar lógica de cambio de contraseña */ },
+            onClick = { navController.navigate("ChangePasswordRoute") },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Cambiar Contraseña")

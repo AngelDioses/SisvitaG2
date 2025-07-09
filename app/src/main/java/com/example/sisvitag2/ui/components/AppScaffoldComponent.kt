@@ -2,9 +2,16 @@ package com.example.sisvitag2.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
@@ -12,6 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -27,15 +36,34 @@ import coil.request.ImageRequest // Si usas AsyncImage aquí también
 import com.example.sisvitag2.R
 import com.example.sisvitag2.ui.navigation.AppNavHost
 import com.example.sisvitag2.ui.theme.SisvitaG2Theme
+import com.example.sisvitag2.ui.vm.SessionViewModel
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
+import android.util.Log
+import org.koin.androidx.compose.get
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppScaffoldComponent(
-    userName: String,
     onLogout: () -> Unit,
     navController: NavHostController
 ) {
+    val sessionViewModel: SessionViewModel = koinViewModel()
+    val userName by sessionViewModel.userName
+    val userPhotoUrl by sessionViewModel.userPhotoUrl
+    val userRol by sessionViewModel.userRol
+    val userEstado by sessionViewModel.userEstado
+    
+    // Log para verificar si userName se actualiza
+    LaunchedEffect(userName) {
+        Log.d("AppScaffoldComponent", "userName actualizado en AppScaffold: $userName")
+    }
+    
+    // Log para verificar si userEstado se actualiza
+    LaunchedEffect(userEstado) {
+        Log.d("AppScaffoldComponent", "userEstado actualizado en AppScaffold: $userEstado")
+    }
+    
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var selectedScreen by remember { mutableStateOf("Inicio") }
@@ -57,8 +85,10 @@ fun AppScaffoldComponent(
         drawerState = drawerState,
         drawerContent = {
             NavigationDrawerComponent(
-                userName = userName,
+                userName = userName ?: "Usuario",
+                userPhotoUrl = userPhotoUrl,
                 selectedScreen = selectedScreen,
+                userRol = userRol,
                 onItemClick = { screenRoute ->
                     selectedScreen = screenRoute // O el título amigable correspondiente
                     scope.launch { drawerState.close() }
@@ -127,7 +157,9 @@ fun TopBarComponent(
 @Composable
 fun NavigationDrawerComponent(
     userName: String,
+    userPhotoUrl: String?,
     selectedScreen: String,
+    userRol: Int?,
     onItemClick: (String) -> Unit,
     onLogout: () -> Unit
 ) {
@@ -141,12 +173,16 @@ fun NavigationDrawerComponent(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Asumiendo que user1.jpg es un placeholder o que photoUrl se manejaría aquí
-            // si se pasara desde SessionViewModel a AppScaffoldComponent.
-            // Por ahora, usando el placeholder directamente.
-            Image(
-                painter = painterResource(id = R.drawable.user1), // Placeholder
+            // Cargar la foto del usuario desde URL o usar placeholder
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(userPhotoUrl ?: R.drawable.user1)
+                    .crossfade(true)
+                    .error(R.drawable.user1)
+                    .placeholder(R.drawable.user1)
+                    .build(),
                 contentDescription = "Foto de perfil",
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
@@ -157,13 +193,13 @@ fun NavigationDrawerComponent(
         }
         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-        val menuItems = listOf(
-            "Inicio" to R.drawable.ic_home,
-            "Test" to R.drawable.ic_test,
-            "Necesito ayuda" to R.drawable.ic_help,
-            "Historial" to R.drawable.ic_history,
-            "Cuenta" to R.drawable.ic_account
-        )
+        val menuItems = buildList {
+            add("Inicio" to R.drawable.ic_home)
+            if (userRol == 1) add("Test" to R.drawable.ic_test) // Solo Persona
+            if (userRol == 2) add("Bandeja" to R.drawable.ic_history) // Solo Especialista
+            if (userRol == 1) add("Necesito ayuda" to R.drawable.ic_help) // Solo Persona
+            add("Cuenta" to R.drawable.ic_account)
+        }
 
         menuItems.forEach { (route, iconRes) ->
             val itemPadding = NavigationDrawerItemDefaults.ItemPadding // Guardar para usar
@@ -206,7 +242,6 @@ fun AppScaffoldPreview() {
     SisvitaG2Theme(darkTheme = false) {
         val previewNavController = rememberNavController() // <- Esto debería funcionar si navigation-compose está bien.
         AppScaffoldComponent(
-            userName = "Usuario Preview",
             onLogout = {},
             navController = previewNavController
         )

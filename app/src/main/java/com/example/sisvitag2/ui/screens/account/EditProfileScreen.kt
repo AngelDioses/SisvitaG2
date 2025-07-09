@@ -1,41 +1,99 @@
 package com.example.sisvitag2.ui.screens.account
 
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.sisvitag2.R
 import com.example.sisvitag2.ui.vm.AccountViewModel
 import com.example.sisvitag2.ui.vm.AccountUiState
+import com.example.sisvitag2.ui.vm.SessionViewModel
 import org.koin.androidx.compose.koinViewModel
 import android.util.Log
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileScreen(
     navController: NavController,
-    viewModel: AccountViewModel = koinViewModel()
+    viewModel: AccountViewModel = koinViewModel(),
+    sessionViewModel: SessionViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    
+    // Conectar el callback y la referencia directa para actualizar SessionViewModel
+    LaunchedEffect(Unit) {
+        viewModel.onProfileUpdated = {
+            Log.d("EditProfileScreen", "Callback onProfileUpdated recibido, actualizando SessionViewModel...")
+            // Forzar actualización del SessionViewModel
+            sessionViewModel.fetchUserNameData(sessionViewModel.auth.currentUser)
+            Log.d("EditProfileScreen", "SessionViewModel actualizado.")
+        }
+        
+        // SessionViewModel ya está inyectado en AccountViewModel, no necesitamos conectarlo manualmente
+        Log.d("EditProfileScreen", "AccountViewModel ya tiene SessionViewModel inyectado.")
+    }
 
     var nombre by remember { mutableStateOf("") }
     var apellidoPaterno by remember { mutableStateOf("") }
     var apellidoMaterno by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
-    // ... otros campos si los haces editables ...
+    var departamento by remember { mutableStateOf("") }
+    var provincia by remember { mutableStateOf("") }
+    var distrito by remember { mutableStateOf("") }
+    var fechaNacimiento by remember { mutableStateOf("") }
+    
+    var showDatePickerDialog by remember { mutableStateOf(false) }
+    val maxDateCalendar = Calendar.getInstance().apply { add(Calendar.YEAR, -18) }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = maxDateCalendar.timeInMillis,
+        yearRange = (Calendar.getInstance().get(Calendar.YEAR) - 100)..(maxDateCalendar.get(Calendar.YEAR)),
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return utcTimeMillis <= maxDateCalendar.timeInMillis
+            }
+        }
+    )
+    
+    // Launcher para seleccionar imagen
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.updateUserProfilePicture(it) }
+    }
 
     var fieldsInitialized by remember { mutableStateOf(false) }
     val currentProfile = (uiState as? AccountUiState.ProfileLoaded)?.userProfile ?:
@@ -48,13 +106,21 @@ fun EditProfileScreen(
                 (nombre != profile.nombre || // O si los datos del VM cambiaron
                         apellidoPaterno != profile.apellidoPaterno ||
                         apellidoMaterno != (profile.apellidoMaterno ?: "") ||
-                        telefono != (profile.telefono ?: ""))
+                        telefono != (profile.telefono ?: "") ||
+                        departamento != (profile.departamento ?: "") ||
+                        provincia != (profile.provincia ?: "") ||
+                        distrito != (profile.distrito ?: "") ||
+                        fechaNacimiento != (profile.fechaNacimiento ?: ""))
             ) {
                 Log.d("EditProfileScreen", "Inicializando campos desde perfil: ${profile.displayName}")
                 nombre = profile.nombre ?: ""
                 apellidoPaterno = profile.apellidoPaterno ?: ""
                 apellidoMaterno = profile.apellidoMaterno ?: ""
                 telefono = profile.telefono ?: ""
+                departamento = profile.departamento ?: ""
+                provincia = profile.provincia ?: ""
+                distrito = profile.distrito ?: ""
+                fechaNacimiento = profile.fechaNacimiento ?: ""
                 fieldsInitialized = true
             }
         }
@@ -78,6 +144,23 @@ fun EditProfileScreen(
             }
             else -> {}
         }
+    }
+    
+    // DatePicker Dialog
+    if (showDatePickerDialog) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePickerDialog = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDatePickerDialog = false
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                        fechaNacimiento = sdf.format(millis)
+                    }
+                }) { Text("Aceptar") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePickerDialog = false }) { Text("Cancelar") } }
+        ) { DatePicker(state = datePickerState) }
     }
 
     Scaffold(
@@ -120,70 +203,207 @@ fun EditProfileScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Foto de perfil
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                            .clickable(enabled = !isLoading) { imagePickerLauncher.launch("image/*") }
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(currentProfile?.photoUrl ?: R.drawable.user1)
+                                .crossfade(true)
+                                .error(R.drawable.user1)
+                                .placeholder(R.drawable.user1)
+                                .build(),
+                            contentDescription = "Foto de perfil",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        
+                        // Icono de agregar foto
+                        Icon(
+                            imageVector = Icons.Filled.AddAPhoto,
+                            contentDescription = "Cambiar foto",
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    CircleShape
+                                )
+                                .padding(8.dp)
+                                .size(24.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    
+                    Text(
+                        text = "Toca la imagen para cambiar la foto de perfil",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Campos de texto
                     OutlinedTextField(
                         value = nombre,
                         onValueChange = { nombre = it },
                         label = { Text("Nombre(s) *") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Next
+                        ),
                         enabled = !isLoading
                     )
+                    
                     OutlinedTextField(
                         value = apellidoPaterno,
                         onValueChange = { apellidoPaterno = it },
                         label = { Text("Apellido Paterno *") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Next
+                        ),
                         enabled = !isLoading
                     )
+                    
                     OutlinedTextField(
                         value = apellidoMaterno,
                         onValueChange = { apellidoMaterno = it },
                         label = { Text("Apellido Materno") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Next
+                        ),
                         enabled = !isLoading
                     )
+                    
                     OutlinedTextField(
                         value = telefono,
                         onValueChange = { if (it.length <= 9 && it.all(Char::isDigit)) telefono = it },
                         label = { Text("Teléfono") },
                         modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Phone,
+                            imeAction = ImeAction.Next
+                        ),
                         singleLine = true,
                         enabled = !isLoading
                     )
-
-                    // Aquí irían los campos más complejos como Fecha de Nacimiento, Ubicación, etc.
-                    // si decides hacerlos editables. Requerirían DatePickers y Dropdowns.
+                    
+                    // Fecha de nacimiento
+                    OutlinedTextField(
+                        value = fechaNacimiento,
+                        onValueChange = { /* No editable */ },
+                        readOnly = true,
+                        label = { Text("Fecha de Nacimiento") },
+                        placeholder = { Text("YYYY-MM-DD") },
+                        trailingIcon = {
+                            IconButton(onClick = { showDatePickerDialog = true }, enabled = !isLoading) {
+                                Icon(
+                                    imageVector = Icons.Filled.CalendarToday,
+                                    contentDescription = "Seleccionar fecha"
+                                )
+                            }
+                        },
+                        enabled = !isLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                            disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+                            disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f),
+                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f),
+                            disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                        )
+                    )
+                    
+                    // Campos de ubicación (solo lectura por ahora)
+                    OutlinedTextField(
+                        value = departamento,
+                        onValueChange = { },
+                        readOnly = true,
+                        label = { Text("Departamento") },
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                            disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f)
+                        )
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = provincia,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Provincia") },
+                            enabled = false,
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f)
+                            )
+                        )
+                        
+                        OutlinedTextField(
+                            value = distrito,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Distrito") },
+                            enabled = false,
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f)
+                            )
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
                         onClick = {
                             focusManager.clearFocus()
-                            val originalProfile = (currentProfile) // El perfil cargado antes de la edición
+                            val originalProfile = currentProfile
 
                             val updatedData = mutableMapOf<String, Any>()
                             if (nombre != originalProfile?.nombre) updatedData["nombre"] = nombre.trim()
                             if (apellidoPaterno != originalProfile?.apellidoPaterno) updatedData["apellidopaterno"] = apellidoPaterno.trim()
-
-                            // Para campos opcionales, enviar solo si realmente cambiaron o si se pueden blanquear
                             if (apellidoMaterno != (originalProfile?.apellidoMaterno ?: "")) updatedData["apellidomaterno"] = apellidoMaterno.trim()
                             if (telefono != (originalProfile?.telefono ?: "")) updatedData["telefono"] = telefono.trim()
+                            if (fechaNacimiento != (originalProfile?.fechaNacimiento ?: "")) updatedData["fechanacimiento_str"] = fechaNacimiento
 
                             if (updatedData.isNotEmpty()) {
                                 viewModel.updateUserPersonalData(updatedData)
                             } else {
                                 Toast.makeText(context, "No hay cambios para guardar.", Toast.LENGTH_SHORT).show()
-                                navController.popBackStack() // Vuelve si no hay cambios
+                                navController.popBackStack()
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
                         } else {
                             Text("Guardar Cambios")
                         }

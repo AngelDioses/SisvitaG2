@@ -29,20 +29,30 @@ import com.example.sisvitag2.data.model.Test // Modelo de datos para Test
 import com.example.sisvitag2.ui.screens.test.TestViewModel // ViewModel para la lógica de Tests
 import com.example.sisvitag2.ui.theme.SisvitaG2Theme
 import org.koin.androidx.compose.koinViewModel
+import org.koin.androidx.compose.get
+import com.example.sisvitag2.ui.vm.SessionViewModel // ViewModel para la lógica de la sesión
 
 @Composable
 fun HomeScreen(
     navController: NavController, // Para navegar a otras pantallas
     testViewModel: TestViewModel = koinViewModel(), // Para obtener la lista de tests
-    userName: String? // Nombre del usuario logueado, viene del SessionViewModel
+    sessionViewModel: SessionViewModel = get() // Para obtener el nombre del usuario
 ) {
     // Observar los datos del TestViewModel
     val testsState by testViewModel.tests.collectAsState()
     val isLoadingTests by testViewModel.isLoadingTests.collectAsState()
+    
+    // Observar el nombre del usuario directamente del SessionViewModel
+    val userName by sessionViewModel.userName
 
     // Log para verificar que userName se recibe correctamente
     LaunchedEffect(userName) {
         Log.d("HomeScreen", "HomeScreen: userName recibido: $userName")
+    }
+    
+    // Log adicional para verificar cambios
+    LaunchedEffect(userName) {
+        Log.d("HomeScreen", "HomeScreen: userName CAMBIÓ a: $userName")
     }
 
     // Column principal para el contenido de HomeScreen
@@ -271,6 +281,6 @@ fun HomeScreenLightPreview() {
     SisvitaG2Theme { // Aplica tu tema
         val navController = rememberNavController() // NavController de prueba para el preview
         // HomeScreen no toma paddingValues directamente; el NavHost se encarga de eso.
-        HomeScreen(navController = navController, userName = "Ángel Preview")
+        HomeScreen(navController = navController)
     }
 }
