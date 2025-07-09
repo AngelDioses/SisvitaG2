@@ -73,6 +73,8 @@ fun AppScaffoldComponent(
             selectedScreen = when (backStackEntry.destination.route) {
                 "Inicio" -> "Inicio"
                 "Test" -> "Test"
+                "Tests Pendientes" -> "Tests Pendientes"
+                "Historial de Feedback" -> "Historial de Feedback"
                 "Necesito ayuda" -> "Necesito Ayuda"
                 "Historial" -> "Historial"
                 "Cuenta" -> "Cuenta"
@@ -90,6 +92,7 @@ fun AppScaffoldComponent(
                 selectedScreen = selectedScreen,
                 userRol = userRol,
                 onItemClick = { screenRoute ->
+                    Log.d("DrawerClick", "Click en opción del menú: $screenRoute")
                     selectedScreen = screenRoute // O el título amigable correspondiente
                     scope.launch { drawerState.close() }
                     navController.navigate(screenRoute) {
@@ -196,7 +199,11 @@ fun NavigationDrawerComponent(
         val menuItems = buildList {
             add("Inicio" to R.drawable.ic_home)
             if (userRol == 1) add("Test" to R.drawable.ic_test) // Solo Persona
-            if (userRol == 2) add("Bandeja" to R.drawable.ic_history) // Solo Especialista
+            if (userRol == 1) add("Feedbacks" to R.drawable.ic_history) // Solo Persona
+            if (userRol == 2) {
+                add("Tests Pendientes" to R.drawable.ic_test) // Especialista
+                add("Historial de Feedback" to R.drawable.ic_history) // Especialista
+            }
             if (userRol == 1) add("Necesito ayuda" to R.drawable.ic_help) // Solo Persona
             add("Cuenta" to R.drawable.ic_account)
         }
@@ -212,7 +219,7 @@ fun NavigationDrawerComponent(
                 ).padding(horizontal = 12.dp - itemPadding.calculateStartPadding(LayoutDirection.Ltr)), // Ajuste para que el padding total sea ~12dp horizontal
                 icon = { Icon(painter = painterResource(id = iconRes), contentDescription = route) },
                 label = { Text(route) },
-                selected = selectedScreen == route, // Compara con la ruta
+                selected = false, // Forzar a false para probar el click
                 onClick = { onItemClick(route) }
             )
         }
