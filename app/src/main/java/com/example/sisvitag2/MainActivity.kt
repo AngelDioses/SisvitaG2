@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
                     val authState by sessionViewModel.authState
                     // Usar un key para forzar recomposición total al cambiar el estado de autenticación
                     androidx.compose.runtime.key(authState) {
-                        AuthDecisionRoot()
+                    AuthDecisionRoot()
                     }
                 }
             }
