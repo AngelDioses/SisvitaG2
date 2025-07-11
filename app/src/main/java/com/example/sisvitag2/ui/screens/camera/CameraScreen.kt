@@ -696,7 +696,7 @@ fun PieChartCompose(result: EmotionalAnalysisResponse) {
                     Spacer(modifier = Modifier.width(8.dp))
                     
                     Text(
-                        text = "${labels[i]}: ${values[i]} (${String.format("%.1f", proportions[i]*100)}%)",
+                        text = "${labels[i]} (${String.format("%.1f", proportions[i]*100)}%)",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
