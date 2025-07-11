@@ -113,6 +113,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.media3.common.ktx)
 
+    // --- OkHttp para llamadas a API ---
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
     // --- Dependencias Opcionales (Eliminar si no se usan) ---
     // implementation(libs.volley)
     // implementation(libs.androidx.room.runtime.android)

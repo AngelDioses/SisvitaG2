@@ -32,16 +32,16 @@ data class FirestoreAnalysisResult(
     constructor() : this("", "", "pendiente", null, null, null)
 }
 
-
 /**
  * Repositorio para manejar las operaciones relacionadas con el análisis de emociones,
- * interactuando con Firebase Storage y Firestore.
+ * interactuando con Firebase Storage y Firestore, y ahora también con la nueva API externa.
  */
 class EmotionalAnalysisRepository(
     // Inyecta las dependencias de Firebase (vía Koin)
     private val firebaseAuth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage
+    private val storage: FirebaseStorage,
+    private val apiService: EmotionalAnalysisApiService // Nueva dependencia
 ) {
 
     companion object {
@@ -50,6 +50,42 @@ class EmotionalAnalysisRepository(
         private const val RESULTS_COLLECTION = "analisisResultados"
         // Carpeta raíz en Firebase Storage donde se suben los videos
         private const val VIDEOS_STORAGE_PATH = "videos"
+    }
+
+    /**
+     * NUEVO MÉTODO: Analiza una imagen directamente usando la API externa
+     * sin subir a Firebase Storage
+     */
+    suspend fun analyzeImageDirectly(imageUri: Uri): EmotionalAnalysisResponse {
+        Log.d(TAG, "Iniciando análisis directo de imagen: $imageUri")
+        
+        return try {
+            // Llamar directamente a la API externa
+            val result = apiService.analyzeImage(imageUri)
+            Log.i(TAG, "Análisis directo de imagen completado exitosamente")
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en análisis directo de imagen", e)
+            throw e
+        }
+    }
+
+    /**
+     * NUEVO MÉTODO: Analiza un video directamente usando la API externa
+     * sin subir a Firebase Storage
+     */
+    suspend fun analyzeVideoDirectly(videoUri: Uri): EmotionalAnalysisResponse {
+        Log.d(TAG, "Iniciando análisis directo de video: $videoUri")
+        
+        return try {
+            // Llamar directamente a la API externa
+            val result = apiService.analyzeVideo(videoUri)
+            Log.i(TAG, "Análisis directo completado exitosamente")
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en análisis directo", e)
+            throw e
+        }
     }
 
     /**

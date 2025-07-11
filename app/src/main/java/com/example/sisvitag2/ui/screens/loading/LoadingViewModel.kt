@@ -137,13 +137,13 @@ class LoadingViewModel(
             try {
                 // ... (preparar emotionMap) ...
                 val emotionMap = mapOf(
-                    "Disgustado" to (emotions.disgusted ?: 0.0),
-                    "Enojado" to (emotions.angry ?: 0.0),
-                    "Feliz" to (emotions.happy ?: 0.0),
-                    "Miedo" to (emotions.scared ?: 0.0),
-                    "Neutral" to (emotions.neutral ?: 0.0),
-                    "Sorpresa" to (emotions.surprised ?: 0.0),
-                    "Triste" to (emotions.sad ?: 0.0)
+                    "Disgustado" to emotions.disgust.toDouble(),
+                    "Enojado" to emotions.angry.toDouble(),
+                    "Feliz" to emotions.happy.toDouble(),
+                    "Miedo" to emotions.fear.toDouble(),
+                    "Neutral" to emotions.neutral.toDouble(),
+                    "Sorpresa" to emotions.surprise.toDouble(),
+                    "Triste" to emotions.sad.toDouble()
                 )
                 val orientation = orientationRepository.getRespuesta(userName, emotionMap)
                 // Decide cómo manejar el resultado de la orientación (ej. otro estado, evento)

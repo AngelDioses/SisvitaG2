@@ -1,7 +1,6 @@
 package com.example.sisvitag2.util
 
-// Importa el modelo de respuesta de Firebase
-import com.example.sisvitag2.data.repository.emotionalAnalysis.EmotionalAnalysisResponse // Ajusta el import si es necesario
+import com.example.sisvitag2.data.repository.emotionalAnalysis.EmotionalAnalysisResponse
 import java.math.RoundingMode
 
 /**
@@ -47,13 +46,13 @@ fun calculateAnxietyLevel(emotions: Map<String, Float>): Float {
  */
 fun mapFirebaseEmotionsToFloatPercentages(emotions: EmotionalAnalysisResponse): Map<String, Float> {
     return mapOf(
-        "Disgustado" to ((emotions.disgusted ?: 0.0) * 100).toFloat(),
-        "Enojado" to ((emotions.angry ?: 0.0) * 100).toFloat(),
-        "Feliz" to ((emotions.happy ?: 0.0) * 100).toFloat(),
-        "Miedo" to ((emotions.scared ?: 0.0) * 100).toFloat(),
-        "Neutral" to ((emotions.neutral ?: 0.0) * 100).toFloat(),
-        "Sorpresa" to ((emotions.surprised ?: 0.0) * 100).toFloat(),
-        "Triste" to ((emotions.sad ?: 0.0) * 100).toFloat()
+        "Disgustado" to (emotions.disgust * 100).toFloat(),
+        "Enojado" to (emotions.angry * 100).toFloat(),
+        "Feliz" to (emotions.happy * 100).toFloat(),
+        "Miedo" to (emotions.fear * 100).toFloat(),
+        "Neutral" to (emotions.neutral * 100).toFloat(),
+        "Sorpresa" to (emotions.surprise * 100).toFloat(),
+        "Triste" to (emotions.sad * 100).toFloat()
     ).mapValues { (_, value) ->
         // Redondeo a 3 decimales
         value.toBigDecimal().setScale(3, RoundingMode.HALF_UP).toFloat()

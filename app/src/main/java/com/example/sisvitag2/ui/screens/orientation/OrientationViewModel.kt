@@ -56,13 +56,13 @@ class OrientationViewModel (
                 Log.d("OrientationViewModel", "Obteniendo orientación para: $userName")
                 // Prepara el mapa de emociones como Double
                 val emotionMap = mapOf(
-                    "Disgustado" to (emotionsData.disgusted ?: 0.0),
-                    "Enojado" to (emotionsData.angry ?: 0.0),
-                    "Feliz" to (emotionsData.happy ?: 0.0),
-                    "Miedo" to (emotionsData.scared ?: 0.0),
-                    "Neutral" to (emotionsData.neutral ?: 0.0),
-                    "Sorpresa" to (emotionsData.surprised ?: 0.0),
-                    "Triste" to (emotionsData.sad ?: 0.0)
+                    "Disgustado" to emotionsData.disgust.toDouble(),
+                    "Enojado" to emotionsData.angry.toDouble(),
+                    "Feliz" to emotionsData.happy.toDouble(),
+                    "Miedo" to emotionsData.fear.toDouble(),
+                    "Neutral" to emotionsData.neutral.toDouble(),
+                    "Sorpresa" to emotionsData.surprise.toDouble(),
+                    "Triste" to emotionsData.sad.toDouble()
                 )
 
                 // Llama al repositorio (que llama a la Cloud Function)
