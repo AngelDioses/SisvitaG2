@@ -68,6 +68,9 @@ import androidx.compose.ui.text.style.TextAlign
 import kotlin.math.cos
 import kotlin.math.sin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import com.google.firebase.auth.FirebaseAuth
+import com.example.sisvitag2.data.repository.emotionalAnalysis.EmotionalAnalysisRepository
+import org.koin.java.KoinJavaComponent
 
 @Composable
 fun CameraScreen(navController: NavController) {
@@ -294,6 +297,11 @@ fun AnalysisResultsOverlay(
     result: EmotionalAnalysisResponse,
     onClose: () -> Unit
 ) {
+    // Inyectar AccountViewModel para obtener el perfil del usuario
+    val accountViewModel: com.example.sisvitag2.ui.vm.AccountViewModel = org.koin.androidx.compose.koinViewModel()
+    val uiState by accountViewModel.uiState.collectAsState()
+    val userProfile = (uiState as? com.example.sisvitag2.ui.vm.AccountUiState.ProfileLoaded)?.userProfile
+    
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("Gráfico de Barras", "Gráfico de Pastel", "Recomendaciones")
     
@@ -323,6 +331,14 @@ fun AnalysisResultsOverlay(
         }
     }
     
+    var sending by remember { mutableStateOf(false) }
+    var sent by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+    val analysisRepo = KoinJavaComponent.getKoin().get<EmotionalAnalysisRepository>()
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    val userId = currentUser?.uid ?: ""
+    // val userName = currentUser?.displayName ?: ""
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -393,7 +409,47 @@ fun AnalysisResultsOverlay(
                     label = "TabContent"
                 ) { tabIndex ->
                     when (tabIndex) {
-                        0 -> BarChartContent(result = result)
+                        0 -> {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                BarChartContent(
+                                    result = result,
+                                    sending = sending,
+                                    sent = sent,
+                                    errorMsg = errorMsg,
+                                    onSend = suspend {
+                                        if (userProfile == null) {
+                                            errorMsg = "Perfil de usuario no cargado. Intenta nuevamente más tarde."
+                                        } else {
+                                            sending = true
+                                            errorMsg = null
+                                            val resultsMap = mapOf(
+                                                "angry" to result.angry,
+                                                "disgust" to result.disgust,
+                                                "fear" to result.fear,
+                                                "happy" to result.happy,
+                                                "sad" to result.sad,
+                                                "surprise" to result.surprise,
+                                                "neutral" to result.neutral
+                                            )
+                                            val submission = com.example.sisvitag2.data.model.EmotionalAnalysisSubmission(
+                                                userId = userId,
+                                                userName = userProfile.nombre ?: "",
+                                                apellidoPaterno = userProfile.apellidoPaterno ?: "",
+                                                fechaNacimiento = userProfile.fechaNacimiento?.toDate()?.let { java.text.SimpleDateFormat("dd/MM/yyyy").format(it) } ?: "",
+                                                results = resultsMap
+                                            )
+                                            val resultId = analysisRepo.submitEmotionalAnalysis(submission)
+                                            if (resultId != null) {
+                                                sent = true
+                                            } else {
+                                                errorMsg = "Error al enviar el análisis. Intenta nuevamente."
+                                            }
+                                            sending = false
+                                        }
+                                    }
+                                )
+                            }
+                        }
                         1 -> PieChartContent(result = result)
                         2 -> RecommendationContent(
                             recommendation = recommendation,
@@ -470,7 +526,14 @@ fun EmotionBar(
 }
 
 @Composable
-fun BarChartContent(result: EmotionalAnalysisResponse) {
+fun BarChartContent(
+    result: EmotionalAnalysisResponse,
+    sending: Boolean,
+    sent: Boolean,
+    errorMsg: String?,
+    onSend: suspend () -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
@@ -486,26 +549,33 @@ fun BarChartContent(result: EmotionalAnalysisResponse) {
             )
         }
         
+        item { EmotionBar("Feliz", result.happy, result.getTotalEmotions()) }
+        item { EmotionBar("Triste", result.sad, result.getTotalEmotions()) }
+        item { EmotionBar("Enojado", result.angry, result.getTotalEmotions()) }
+        item { EmotionBar("Miedo", result.fear, result.getTotalEmotions()) }
+        item { EmotionBar("Sorpresa", result.surprise, result.getTotalEmotions()) }
+        item { EmotionBar("Disgusto", result.disgust, result.getTotalEmotions()) }
+        item { EmotionBar("Neutral", result.neutral, result.getTotalEmotions()) }
         item {
-            EmotionBar("Feliz", result.happy, result.getTotalEmotions())
-        }
-        item {
-            EmotionBar("Triste", result.sad, result.getTotalEmotions())
-        }
-        item {
-            EmotionBar("Enojado", result.angry, result.getTotalEmotions())
-        }
-        item {
-            EmotionBar("Miedo", result.fear, result.getTotalEmotions())
-        }
-        item {
-            EmotionBar("Sorpresa", result.surprise, result.getTotalEmotions())
-        }
-        item {
-            EmotionBar("Disgusto", result.disgust, result.getTotalEmotions())
-        }
-        item {
-            EmotionBar("Neutral", result.neutral, result.getTotalEmotions())
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    coroutineScope.launch {
+                        onSend()
+                    }
+                },
+                enabled = !sending && !sent,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (sending) CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                else Text(if (sent) "Enviado" else "Enviar al especialista")
+            }
+            errorMsg?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+            }
+            if (sent) {
+                Text("¡Análisis enviado correctamente!", color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
+            }
         }
     }
 }

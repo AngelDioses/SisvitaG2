@@ -50,6 +50,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.Canvas
 import kotlin.math.cos
 import kotlin.math.sin
+import com.google.firebase.auth.FirebaseAuth
 @Composable
 fun ResultsScreen(
     // paddingValues: PaddingValues, // ELIMINADO de la firma
@@ -86,6 +87,13 @@ fun ResultsScreen(
             modifier = Modifier.padding(bottom = 16.dp) // Espacio debajo del título
         )
 
+        // Mensaje de depuración para ver el estado y los datos
+        Text(
+            text = "[DEBUG] Estado: ${uiState::class.simpleName} | Emotions: ${if ((uiState as? ResultsUiState.Success)?.emotions != null) "OK" else "NULO"}",
+            color = Color.Red,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
         when (val state = uiState) {
             is ResultsUiState.Loading -> {
                 Spacer(modifier = Modifier.height(64.dp))
@@ -96,6 +104,7 @@ fun ResultsScreen(
                 val emotions = state.emotions
                 val anxietyLevel = state.anxietyLevel
                 val userName = state.userName // Obtenido por el ViewModel
+                // Eliminar: val userId = state.userId
 
                 if (emotions != null) {
                     val emotionPercentages = mapFirebaseEmotionsToFloatPercentages(emotions)
@@ -104,7 +113,6 @@ fun ResultsScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     AnxietyLevelCard(level = anxietyLevel)
                     Spacer(modifier = Modifier.height(24.dp))
-
 
                     // Agregar los nuevos gráficos  
                     EmotionRadarChart(emotionPercentages = emotionPercentages)  
@@ -120,23 +128,78 @@ fun ResultsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(
                         onClick = {
-                            // userName se obtiene del ViewModel (SessionViewModel) en OrientationScreen
-                            // Ya no es necesario pasarlo explícitamente en la ruta si OrientationScreen lo toma de allí.
                             try {
                                 val emotionsJson = Json.encodeToString(emotions)
                                 val encodedEmotions = URLEncoder.encode(emotionsJson, StandardCharsets.UTF_8.toString())
-                                // Navega a OrientationScreen pasando solo las emociones
                                 navController.navigate("Orientations?emotions=$encodedEmotions")
                             } catch (e: Exception) {
                                 Toast.makeText(context, "Error al preparar datos para orientación.", Toast.LENGTH_SHORT).show()
                                 Log.e("ResultsScreen", "Error serializando/codificando emociones", e)
                             }
                         }
-                        // enabled se podría basar en si hay emociones, el nombre ya no es un factor aquí
                     ) {
                         Text(text = "Escuchar las recomendaciones de IA")
                     }
 
+                    // === NUEVO: Botón para enviar al especialista ===
+                    Spacer(modifier = Modifier.height(16.dp))
+                    var sending by remember { mutableStateOf(false) }
+                    var sent by remember { mutableStateOf(false) }
+                    var errorMsg by remember { mutableStateOf<String?>(null) }
+                    var triggerSend by remember { mutableStateOf(false) }
+                    val analysisRepo = org.koin.java.KoinJavaComponent.getKoin().get<com.example.sisvitag2.data.repository.emotionalAnalysis.EmotionalAnalysisRepository>()
+
+                    // Mover LaunchedEffect fuera del callback del botón
+                    LaunchedEffect(triggerSend) {
+                        if (triggerSend) {
+                            sending = true
+                            errorMsg = null
+                            val resultsMap = mapOf(
+                                "angry" to emotions.angry,
+                                "disgust" to emotions.disgust,
+                                "fear" to emotions.fear,
+                                "happy" to emotions.happy,
+                                "sad" to emotions.sad,
+                                "surprise" to emotions.surprise,
+                                "neutral" to emotions.neutral
+                            )
+                            val currentUser = FirebaseAuth.getInstance().currentUser
+                            val userId = currentUser?.uid ?: ""
+                            val safeUserName = userName ?: currentUser?.displayName ?: ""
+                            val submission = com.example.sisvitag2.data.model.EmotionalAnalysisSubmission(
+                                userId = userId,
+                                userName = safeUserName,
+                                results = resultsMap
+                            )
+                            val result = analysisRepo.submitEmotionalAnalysis(submission)
+                            if (result != null) {
+                                sent = true
+                            } else {
+                                errorMsg = "Error al enviar el análisis. Intenta nuevamente."
+                            }
+                            sending = false
+                            triggerSend = false
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            if (!sending && !sent) {
+                                triggerSend = true
+                            }
+                        },
+                        enabled = !sending && !sent,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (sending) CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        else Text(if (sent) "Enviado" else "Enviar al especialista")
+                    }
+                    errorMsg?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+                    }
+                    if (sent) {
+                        Text("¡Análisis enviado correctamente!", color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
+                    }
                 } else {
                     Text("Datos de emociones no disponibles para mostrar.")
                 }

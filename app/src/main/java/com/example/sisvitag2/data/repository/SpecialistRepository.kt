@@ -3,6 +3,7 @@ package com.example.sisvitag2.data.repository
 import com.example.sisvitag2.data.model.SpecialistFeedback
 import com.example.sisvitag2.data.model.SpecialistTestSubmission
 import com.example.sisvitag2.data.model.UserProfileData
+import com.example.sisvitag2.data.model.EmotionalAnalysisSubmission
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -169,5 +170,58 @@ class SpecialistRepository(
 
     fun getCurrentSpecialistUid(): String? {
         return auth.currentUser?.uid
+    }
+
+    // Obtener lista de análisis emocionales pendientes
+    suspend fun getPendingEmotionalAnalyses(): List<EmotionalAnalysisSubmission> {
+        return try {
+            val snapshot = firestore.collection("emotional_analysis_submissions")
+                .whereEqualTo("status", "pending")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            android.util.Log.d("SpecialistRepository", "Análisis emocionales pendientes encontrados: ${snapshot.size()}")
+            val result = snapshot.documents.mapNotNull { doc ->
+                val obj = doc.toObject(EmotionalAnalysisSubmission::class.java)
+                if (obj == null) {
+                    android.util.Log.e("SpecialistRepository", "Error al convertir documento a EmotionalAnalysisSubmission: ${doc.id}")
+                }
+                obj?.copy(id = doc.id)
+            }
+            android.util.Log.d("SpecialistRepository", "Análisis convertidos correctamente: ${result.size}")
+            result
+        } catch (e: Exception) {
+            android.util.Log.e("SpecialistRepository", "Error al obtener análisis emocionales pendientes: ${e.message}")
+            throw Exception("Error al obtener análisis emocionales pendientes: ${e.message}")
+        }
+    }
+
+    // Guardar feedback de análisis emocional
+    suspend fun sendEmotionalAnalysisFeedback(
+        analysisId: String,
+        userId: String,
+        userName: String,
+        apellidoPaterno: String,
+        fechaNacimiento: String,
+        recommendations: String,
+        severity: String
+    ) {
+        val feedbackData = mapOf(
+            "analysisId" to analysisId,
+            "userId" to userId,
+            "userName" to userName,
+            "apellidoPaterno" to apellidoPaterno,
+            "fechaNacimiento" to fechaNacimiento,
+            "timestamp" to com.google.firebase.Timestamp.now(),
+            "recommendations" to recommendations,
+            "severity" to severity,
+            "status" to "reviewed"
+        )
+        val feedbackRef = firestore.collection("feedback_emotional_analysis").document()
+        feedbackRef.set(feedbackData).await()
+        // Marcar submission como revisado
+        firestore.collection("emotional_analysis_submissions")
+            .document(analysisId)
+            .update(mapOf("status" to "reviewed", "feedbackId" to feedbackRef.id)).await()
     }
 } 

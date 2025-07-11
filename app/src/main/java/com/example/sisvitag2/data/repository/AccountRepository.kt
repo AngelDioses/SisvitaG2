@@ -80,14 +80,15 @@ class AccountRepository(
                     nombre = nombre,
                     apellidoPaterno = apellidoPaterno,
                     apellidoMaterno = apellidoMaterno,
-                    fechaNacimiento = fechaNacimientoStr,
+                    fechaNacimiento = fechaNacimientoTimestamp,
                     tipoDocumento = tipoDocumento,
                     numeroDocumento = numeroDocumento,
                     genero = genero,
                     telefono = telefono,
                     departamento = departamentoStr,
                     provincia = provinciaStr,
-                    distrito = distritoStr
+                    distrito = distritoStr,
+                    ubigeoid = ubigeoId // <-- Asignar el ubigeoid real
                 )
                 Log.i(TAG, "Perfil construido exitosamente desde ${USERS_COLLECTION} para ${firebaseUser.uid}")
                 Result.success(userProfile)
@@ -101,42 +102,35 @@ class AccountRepository(
         }
     }
 
-    suspend fun updateUserPersonalData(userId: String, dataToUpdate: Map<String, Any>): Result<Unit> {
-        if (userId.isBlank()) return Result.failure(IllegalArgumentException("User ID no puede estar vacío"))
-        if (dataToUpdate.isEmpty()) return Result.success(Unit)
-
+    suspend fun updateUserPersonalData(userId: String, data: Map<String, Any?>): Boolean {
         return try {
-            Log.d(TAG, "Actualizando datos en ${USERS_COLLECTION} para $userId: $dataToUpdate")
-            Log.d(TAG, "Datos a actualizar: $dataToUpdate")
-            
-            // Actualizar en Firestore
-            firestore.collection(USERS_COLLECTION).document(userId)
-                .update(dataToUpdate)
-                .await()
-
-            // Si se actualizó el nombre o apellido, actualizar también el displayName en Firebase Auth
-            val currentUser = auth.currentUser
-            if (currentUser != null && currentUser.uid == userId) {
-                val nombre = dataToUpdate["nombre"] as? String
-                val apellidoPaterno = dataToUpdate["apellidopaterno"] as? String
-                
-                if (!nombre.isNullOrBlank() || !apellidoPaterno.isNullOrBlank()) {
-                    val newDisplayName = "$nombre $apellidoPaterno".trim()
-                    if (newDisplayName.isNotBlank()) {
-                        val profileUpdates = UserProfileChangeRequest.Builder()
-                            .setDisplayName(newDisplayName)
-                            .build()
-                        currentUser.updateProfile(profileUpdates).await()
-                        Log.i(TAG, "displayName actualizado en Firebase Auth: $newDisplayName")
+            val dataToUpdate = data.toMutableMap()
+            // Asegurarse de que fechanacimiento sea Timestamp
+            val fechaNacimiento = dataToUpdate["fechanacimiento"]
+            if (fechaNacimiento is String) {
+                // Intentar parsear la fecha a Timestamp (asumiendo formato yyyy-MM-dd)
+                try {
+                    val parts = fechaNacimiento.split("-")
+                    if (parts.size == 3) {
+                        val year = parts[0].toInt()
+                        val month = parts[1].toInt() - 1 // Mes base 0
+                        val day = parts[2].toInt()
+                        val cal = java.util.Calendar.getInstance()
+                        cal.set(year, month, day, 0, 0, 0)
+                        dataToUpdate["fechanacimiento"] = Timestamp(cal.time)
                     }
+                } catch (e: Exception) {
+                    // Si falla, eliminar el campo para evitar error de tipo
+                    dataToUpdate.remove("fechanacimiento")
                 }
             }
-
-            Log.i(TAG, "Datos personales actualizados exitosamente en ${USERS_COLLECTION} para $userId")
-            Result.success(Unit)
+            // Eliminar campos nulos para evitar errores
+            dataToUpdate.entries.removeIf { it.value == null }
+            firestore.collection("usuarios").document(userId).update(dataToUpdate).await()
+            true
         } catch (e: Exception) {
-            Log.e(TAG, "Error actualizando datos personales para $userId", e)
-            Result.failure(e)
+            Log.e(TAG, "Error al actualizar datos personales", e)
+            false
         }
     }
 
@@ -223,7 +217,7 @@ class AccountRepository(
                 val apellidoMaterno = doc.getString("apellidomaterno")
                 val displayName = "$nombre $apellidoPaterno".trim()
                 val photoUrl = doc.getString("photoUrl")
-                val fechaNacimiento = doc.getString("fechanacimiento_str") ?: ""
+                val fechaNacimiento = doc.getTimestamp("fechanacimiento")
                 val tipoDocumento = doc.getString("tipo_documento")
                 val numeroDocumento = doc.getString("numero_documento")
                 val genero = doc.getString("genero")

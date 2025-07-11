@@ -202,6 +202,7 @@ fun NavigationDrawerComponent(
             if (userRol == 1) add("Feedbacks" to R.drawable.ic_history) // Solo Persona
             if (userRol == 2) {
                 add("Tests Pendientes" to R.drawable.ic_test) // Especialista
+                add("Análisis Emocionales Pendientes" to R.drawable.ic_psychologisthelp) // Nueva opción
                 add("Historial de Feedback" to R.drawable.ic_history) // Especialista
             }
             if (userRol == 1) add("Necesito ayuda" to R.drawable.ic_help) // Solo Persona

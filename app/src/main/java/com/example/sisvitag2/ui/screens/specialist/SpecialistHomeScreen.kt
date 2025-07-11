@@ -14,10 +14,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sisvitag2.ui.vm.SpecialistViewModel
 import org.koin.androidx.compose.koinViewModel
+import androidx.navigation.NavController
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SpecialistHomeScreen(
+    navController: NavController? = null, // Permitir navegación opcional
     specialistViewModel: SpecialistViewModel = koinViewModel()
 ) {
     val uiState by specialistViewModel.uiState.collectAsState()
@@ -138,6 +141,35 @@ fun SpecialistHomeScreen(
                         title = "Calidad del Feedback",
                         description = "Proporciona recomendaciones específicas y útiles",
                         icon = "💡"
+                    )
+                }
+            }
+
+            // Tarjeta de acceso a Análisis Emocionales Pendientes
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+                    .clickable { navController?.navigate("AnalisisEmocionalPendiente") },
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Análisis Emocionales Pendientes",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Revisa y responde los análisis emocionales enviados por los usuarios.",
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }

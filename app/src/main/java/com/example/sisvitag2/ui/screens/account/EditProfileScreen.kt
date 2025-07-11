@@ -120,7 +120,7 @@ fun EditProfileScreen(
                 departamento = profile.departamento ?: ""
                 provincia = profile.provincia ?: ""
                 distrito = profile.distrito ?: ""
-                fechaNacimiento = profile.fechaNacimiento ?: ""
+                fechaNacimiento = profile.fechaNacimiento?.toDate()?.let { java.text.SimpleDateFormat("yyyy-MM-dd").format(it) } ?: ""
                 fieldsInitialized = true
             }
         }
@@ -380,20 +380,47 @@ fun EditProfileScreen(
                         onClick = {
                             focusManager.clearFocus()
                             val originalProfile = currentProfile
-
-                            val updatedData = mutableMapOf<String, Any>()
-                            if (nombre != originalProfile?.nombre) updatedData["nombre"] = nombre.trim()
-                            if (apellidoPaterno != originalProfile?.apellidoPaterno) updatedData["apellidopaterno"] = apellidoPaterno.trim()
-                            if (apellidoMaterno != (originalProfile?.apellidoMaterno ?: "")) updatedData["apellidomaterno"] = apellidoMaterno.trim()
-                            if (telefono != (originalProfile?.telefono ?: "")) updatedData["telefono"] = telefono.trim()
-                            if (fechaNacimiento != (originalProfile?.fechaNacimiento ?: "")) updatedData["fechanacimiento_str"] = fechaNacimiento
-
-                            if (updatedData.isNotEmpty()) {
-                                viewModel.updateUserPersonalData(updatedData)
-                            } else {
-                                Toast.makeText(context, "No hay cambios para guardar.", Toast.LENGTH_SHORT).show()
-                                navController.popBackStack()
+                            // Construir el mapa con TODOS los campos requeridos
+                            val dataToUpdate = mutableMapOf<String, Any?>()
+                            dataToUpdate["nombre"] = nombre.trim()
+                            dataToUpdate["apellidopaterno"] = apellidoPaterno.trim()
+                            dataToUpdate["apellidomaterno"] = apellidoMaterno.trim()
+                            dataToUpdate["telefono"] = telefono.trim()
+                            dataToUpdate["departamento"] = departamento
+                            dataToUpdate["provincia"] = provincia
+                            dataToUpdate["distrito"] = distrito
+                            // Campos requeridos por reglas Firestore
+                            dataToUpdate["uid"] = originalProfile?.uid ?: ""
+                            dataToUpdate["correo"] = originalProfile?.email ?: ""
+                            dataToUpdate["tipousuarioid"] = originalProfile?.tipousuarioid ?: ""
+                            dataToUpdate["legacyTipoUsuarioId"] = originalProfile?.legacyTipoUsuarioId ?: 1
+                            dataToUpdate["ubigeoid"] = originalProfile?.ubigeoid ?: ""
+                            dataToUpdate["tipo_documento"] = originalProfile?.tipoDocumento ?: ""
+                            dataToUpdate["numero_documento"] = originalProfile?.numeroDocumento ?: ""
+                            dataToUpdate["genero"] = originalProfile?.genero ?: ""
+                            dataToUpdate["estado"] = originalProfile?.estado ?: "aprobado"
+                            // Fecha de nacimiento
+                            if (fechaNacimiento.isNotBlank() && fechaNacimiento != originalProfile?.fechaNacimiento?.toDate()?.let { java.text.SimpleDateFormat("yyyy-MM-dd").format(it) }) {
+                                // El usuario cambió la fecha, convertir a Timestamp
+                                try {
+                                    val parts = fechaNacimiento.split("-")
+                                    if (parts.size == 3) {
+                                        val year = parts[0].toInt()
+                                        val month = parts[1].toInt() - 1 // Mes base 0
+                                        val day = parts[2].toInt()
+                                        val cal = java.util.Calendar.getInstance()
+                                        cal.set(year, month, day, 0, 0, 0)
+                                        dataToUpdate["fechanacimiento"] = com.google.firebase.Timestamp(cal.time)
+                                    }
+                                } catch (e: Exception) {
+                                    // Si falla, usa el valor original
+                                    dataToUpdate["fechanacimiento"] = originalProfile?.fechaNacimiento ?: ""
+                                }
+                            } else if (originalProfile?.fechaNacimiento != null) {
+                                dataToUpdate["fechanacimiento"] = originalProfile.fechaNacimiento
                             }
+                            Log.d("EditProfileScreen", "Datos enviados a Firestore para update: " + dataToUpdate.map { it.key + ": " + it.value?.toString() })
+                            viewModel.updateUserPersonalData(dataToUpdate)
                         },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading

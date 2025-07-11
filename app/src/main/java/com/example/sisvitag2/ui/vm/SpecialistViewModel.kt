@@ -10,12 +10,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import android.util.Log
+import com.example.sisvitag2.data.model.EmotionalAnalysisSubmission
 
 data class SpecialistUiState(
     val specialistName: String? = null,
     val pendingTestsCount: Int = 0,
     val completedTodayCount: Int = 0,
     val pendingTests: List<SpecialistTestSubmission> = emptyList(),
+    val pendingEmotionalAnalyses: List<EmotionalAnalysisSubmission> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -101,6 +103,30 @@ class SpecialistViewModel(
             } catch (e: Exception) {
                 Log.e("SpecialistViewModel", "Error al obtener feedbacks: ${e.message}")
                 _feedbackHistory.value = emptyList()
+            }
+        }
+    }
+
+    fun loadPendingEmotionalAnalyses() {
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("SpecialistViewModel", "Cargando análisis emocionales pendientes...")
+                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+                val pendingAnalyses = specialistRepository.getPendingEmotionalAnalyses()
+                android.util.Log.d("SpecialistViewModel", "Análisis recuperados: ${pendingAnalyses.size}")
+                pendingAnalyses.forEach { a ->
+                    android.util.Log.d("SpecialistViewModel", "ID: ${a.id}, userName: ${a.userName}, status: ${a.status}")
+                }
+                _uiState.value = _uiState.value.copy(
+                    pendingEmotionalAnalyses = pendingAnalyses,
+                    isLoading = false
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("SpecialistViewModel", "Error al cargar análisis emocionales pendientes: ${e.message}", e)
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Error al cargar análisis emocionales pendientes"
+                )
             }
         }
     }

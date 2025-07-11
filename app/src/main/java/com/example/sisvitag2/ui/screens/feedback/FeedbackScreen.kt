@@ -19,6 +19,9 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import android.util.Log
+import com.example.sisvitag2.data.model.EmotionalAnalysisFeedback
+import com.example.sisvitag2.ui.vm.EmotionalAnalysisFeedbackUiState
+import org.koin.androidx.compose.koinViewModel
 
 fun getSeverityText(severity: String): String = when (severity) {
     "MILD" -> "Leve"
@@ -31,11 +34,32 @@ fun getSeverityText(severity: String): String = when (severity) {
 @Composable
 fun FeedbackScreen(
     viewModel: FeedbackViewModel = koinViewModel(),
+    userId: String? = null // Pasar el userId si es posible
 ) {
     Log.d("FeedbackScreen", "FeedbackScreen renderizado")
-    LaunchedEffect(Unit) {
-        viewModel.loadFeedbacks()
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabTitles = listOf("Feedback de Test", "Feedback de Análisis Emocional")
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TabRow(selectedTabIndex = selectedTab) {
+            tabTitles.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = { selectedTab = index },
+                    text = { Text(title) }
+                )
+            }
+        }
+        when (selectedTab) {
+            0 -> FeedbackTestList(viewModel)
+            1 -> EmotionalAnalysisFeedbackList(viewModel, userId)
+        }
     }
+}
+
+@Composable
+fun FeedbackTestList(viewModel: FeedbackViewModel) {
+    LaunchedEffect(Unit) { viewModel.loadFeedbacks() }
     val uiState by viewModel.uiState.collectAsState()
     var selectedFeedback by remember { mutableStateOf<SpecialistFeedback?>(null) }
     val context = LocalContext.current
@@ -140,6 +164,79 @@ fun FeedbackScreen(
                     TextButton(onClick = { selectedFeedback = null }) {
                         Text("Cerrar")
                     }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun EmotionalAnalysisFeedbackList(viewModel: FeedbackViewModel, userId: String?) {
+    val context = LocalContext.current
+    LaunchedEffect(userId) {
+        userId?.let { viewModel.loadEmotionalAnalysisFeedbacks(it) }
+    }
+    val uiState by viewModel.emotionalFeedbackUiState.collectAsState()
+    var selectedFeedback by remember { mutableStateOf<EmotionalAnalysisFeedback?>(null) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        when (uiState) {
+            is EmotionalAnalysisFeedbackUiState.Loading -> {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+            is EmotionalAnalysisFeedbackUiState.Error -> {
+                Text(
+                    text = (uiState as EmotionalAnalysisFeedbackUiState.Error).message,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+            is EmotionalAnalysisFeedbackUiState.Success -> {
+                val feedbacks = (uiState as EmotionalAnalysisFeedbackUiState.Success).feedbacks
+                if (feedbacks.isEmpty()) {
+                    Text(
+                        text = "No tienes feedbacks de análisis emocional aún.",
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                        items(feedbacks) { feedback ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                                    .clickable { selectedFeedback = feedback },
+                                elevation = CardDefaults.cardElevation(4.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(text = "Especialista: ${feedback.specialistName}", style = MaterialTheme.typography.titleMedium)
+                                    Text(text = "Fecha: ${feedback.feedbackDate.toDate()}", style = MaterialTheme.typography.bodySmall)
+                                    Text(text = "Recomendación: ${feedback.recommendation}", style = MaterialTheme.typography.bodyMedium)
+                                    if (feedback.notes.isNotBlank()) {
+                                        Text(text = "Notas: ${feedback.notes}", style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Diálogo de detalles
+        selectedFeedback?.let { feedback ->
+            AlertDialog(
+                onDismissRequest = { selectedFeedback = null },
+                title = { Text("Detalles del Feedback de Análisis Emocional") },
+                text = {
+                    Column {
+                        Text("Especialista: ${feedback.specialistName}")
+                        Text("Fecha: ${feedback.feedbackDate.toDate()}")
+                        Text("Recomendación: ${feedback.recommendation}")
+                        if (feedback.notes.isNotBlank()) Text("Notas: ${feedback.notes}")
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { selectedFeedback = null }) { Text("Cerrar") }
                 }
             )
         }

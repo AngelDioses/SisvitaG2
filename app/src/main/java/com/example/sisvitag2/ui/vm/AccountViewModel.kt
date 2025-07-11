@@ -71,7 +71,7 @@ class AccountViewModel(
         }
     }
 
-    fun updateUserPersonalData(dataToUpdate: Map<String, Any>) {
+    fun updateUserPersonalData(dataToUpdate: Map<String, Any?>) {
         val currentUserId = auth.currentUser?.uid
         if (currentUserId == null) {
             _uiState.value = AccountUiState.Error("Usuario no autenticado para actualizar perfil.")
@@ -90,19 +90,13 @@ class AccountViewModel(
                 Log.d(TAG, "Llamando a accountRepository.updateUserPersonalData...")
                 val result = accountRepository.updateUserPersonalData(currentUserId, dataToUpdate)
                 Log.d(TAG, "Resultado de updateUserPersonalData: $result")
-                
-                result.fold(
-                    onSuccess = {
-                        Log.i(TAG, "Datos personales actualizados exitosamente.")
-                        // Recargar el perfil para reflejar los cambios
-                        Log.d(TAG, "Recargando perfil después de actualización...")
-                        reloadProfileAfterUpdate()
-                    },
-                    onFailure = { exception ->
-                        Log.e(TAG, "Error actualizando datos personales.", exception)
-                        _uiState.value = AccountUiState.Error(exception.message ?: "No se pudieron guardar los cambios.")
-                    }
-                )
+                if (result) {
+                    Log.i(TAG, "Datos personales actualizados exitosamente.")
+                    reloadProfileAfterUpdate()
+                } else {
+                    Log.e(TAG, "Error actualizando datos personales.")
+                    _uiState.value = AccountUiState.Error("No se pudieron guardar los cambios.")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Excepción inesperada durante actualización", e)
                 _uiState.value = AccountUiState.Error("Error inesperado: ${e.message}")

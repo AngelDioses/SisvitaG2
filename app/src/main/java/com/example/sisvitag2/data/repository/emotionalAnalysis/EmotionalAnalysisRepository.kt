@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOf // Importar flowOf
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
+import com.example.sisvitag2.data.model.EmotionalAnalysisSubmission
+import com.example.sisvitag2.data.model.EmotionalAnalysisFeedback
 
 /**
  * Data class auxiliar para representar la estructura del documento
@@ -234,6 +236,75 @@ class EmotionalAnalysisRepository(
             // Captura cualquier error durante la operación de Firestore
             Log.e(TAG, "Error obteniendo análisis por ID: $videoId", e)
             null // Devuelve null en caso de error
+        }
+    }
+
+    // === NUEVO: Guardar un análisis emocional enviado por el usuario ===
+    suspend fun submitEmotionalAnalysis(submission: EmotionalAnalysisSubmission): String? {
+        return try {
+            val docRef = firestore.collection("emotional_analysis_submissions").document()
+            val submissionWithId = submission.copy(id = docRef.id)
+            docRef.set(submissionWithId).await()
+            submissionWithId.id
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al guardar el análisis emocional", e)
+            null
+        }
+    }
+
+    // === NUEVO: Obtener todos los análisis emocionales enviados por un usuario ===
+    suspend fun getUserEmotionalAnalyses(userId: String): List<EmotionalAnalysisSubmission> {
+        return try {
+            val snapshot = firestore.collection("emotional_analysis_submissions")
+                .whereEqualTo("userId", userId)
+                .get().await()
+            snapshot.documents.mapNotNull { it.toObject(EmotionalAnalysisSubmission::class.java) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al obtener análisis emocionales del usuario", e)
+            emptyList()
+        }
+    }
+
+    // === NUEVO: Obtener todos los análisis emocionales pendientes para especialista ===
+    suspend fun getPendingEmotionalAnalyses(): List<EmotionalAnalysisSubmission> {
+        return try {
+            val snapshot = firestore.collection("emotional_analysis_submissions")
+                .whereEqualTo("status", "pending")
+                .get().await()
+            snapshot.documents.mapNotNull { it.toObject(EmotionalAnalysisSubmission::class.java) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al obtener análisis emocionales pendientes", e)
+            emptyList()
+        }
+    }
+
+    // === NUEVO: Guardar feedback del especialista para un análisis emocional ===
+    suspend fun sendEmotionalAnalysisFeedback(feedback: EmotionalAnalysisFeedback): String? {
+        return try {
+            val docRef = firestore.collection("emotional_analysis_feedback").document()
+            val feedbackWithId = feedback.copy(id = docRef.id)
+            docRef.set(feedbackWithId).await()
+            // Actualizar el estado del submission a "reviewed" y guardar el feedbackId
+            firestore.collection("emotional_analysis_submissions")
+                .document(feedbackWithId.submissionId)
+                .update(mapOf("status" to "reviewed", "feedbackId" to feedbackWithId.id)).await()
+            feedbackWithId.id
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al enviar feedback de análisis emocional", e)
+            null
+        }
+    }
+
+    // === NUEVO: Obtener feedback de análisis emocional para un usuario ===
+    suspend fun getUserEmotionalAnalysisFeedbacks(userId: String): List<EmotionalAnalysisFeedback> {
+        return try {
+            val snapshot = firestore.collection("emotional_analysis_feedback")
+                .whereEqualTo("userId", userId)
+                .get().await()
+            snapshot.documents.mapNotNull { it.toObject(EmotionalAnalysisFeedback::class.java) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al obtener feedbacks de análisis emocional", e)
+            emptyList()
         }
     }
 }

@@ -36,6 +36,7 @@ import com.example.sisvitag2.ui.vm.SessionViewModel
 import org.koin.androidx.compose.koinViewModel
 import org.koin.androidx.compose.get
 import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +47,9 @@ fun AccountScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val userName by sessionViewModel.userName // Observar cambios en el nombre del usuario
+    // Mover aquí la definición de uid para que esté en el scope correcto
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    val uid = currentUser?.uid ?: "(no autenticado)"
 
     LaunchedEffect(Unit) {
         if (uiState is AccountUiState.Idle) {
@@ -84,11 +88,11 @@ fun AccountScreen(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 is AccountUiState.ProfileLoaded -> { // Mostrar perfil cargado
-                    UserProfileContent(userProfile = state.userProfile, navController = navController)
+                    UserProfileContent(userProfile = state.userProfile, navController = navController, uid = uid)
                 }
                 is AccountUiState.UpdateSuccess -> { // Si hubo una actualización y se recargó el perfil
                     state.updatedProfile?.let {
-                        UserProfileContent(userProfile = it, navController = navController)
+                        UserProfileContent(userProfile = it, navController = navController, uid = uid)
                     } ?: CircularProgressIndicator(modifier = Modifier.align(Alignment.Center)) // Mostrar carga si el perfil actualizado es nulo
                 }
                 is AccountUiState.Error -> {
@@ -115,7 +119,8 @@ fun AccountScreen(
 @Composable
 fun UserProfileContent(
     userProfile: UserProfileData,
-    navController: NavController // <--- AÑADIDO para el botón de editar
+    navController: NavController, // <--- AÑADIDO para el botón de editar
+    uid: String // <-- Nuevo parámetro
 ) {
     Column(
         modifier = Modifier
@@ -178,7 +183,7 @@ fun UserProfileContent(
             ProfileInfoRow(label = "Nombre(s)", value = userProfile.nombre)
             ProfileInfoRow(label = "A. Paterno", value = userProfile.apellidoPaterno)
             ProfileInfoRow(label = "A. Materno", value = userProfile.apellidoMaterno)
-            ProfileInfoRow(label = "Fec. Nacimiento", value = userProfile.fechaNacimiento)
+            ProfileInfoRow(label = "Fec. Nacimiento", value = userProfile.fechaNacimiento?.toDate()?.let { java.text.SimpleDateFormat("dd/MM/yyyy").format(it) } ?: "No especificado")
             ProfileInfoRow(label = "Tipo Documento", value = userProfile.tipoDocumento)
             ProfileInfoRow(label = "Nº Documento", value = userProfile.numeroDocumento)
             ProfileInfoRow(label = "Género", value = userProfile.genero)
@@ -204,6 +209,11 @@ fun UserProfileContent(
             Text("Cambiar Contraseña")
         }
         Spacer(modifier = Modifier.height(16.dp))
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text("UID autenticado: $uid", color = MaterialTheme.colorScheme.primary)
+            // Si tienes el userId del documento cargado, muéstralo también aquí
+            // Text("userId documento: $userId", color = MaterialTheme.colorScheme.secondary)
+        }
     }
 }
 
@@ -247,13 +257,13 @@ fun AccountScreenContentPreview() {
         val previewProfile = UserProfileData(
             uid = "preview_uid", email = "usuario@ejemplo.com", displayName = "Usuario de Muestra",
             photoUrl = null, nombre = "Muestra", apellidoPaterno = "Usuario",
-            apellidoMaterno = "De Preview", fechaNacimiento = "15/08/1992", tipoDocumento = "DNI",
+            apellidoMaterno = "De Preview", fechaNacimiento = null, tipoDocumento = "DNI",
             numeroDocumento = "12345678", genero = "Masculino", telefono = "999888777",
             departamento = "Lima", provincia = "Lima", distrito = "Miraflores"
         )
         Surface(color = MaterialTheme.colorScheme.background) {
             // Para el preview, el NavController puede ser uno de prueba.
-            UserProfileContent(userProfile = previewProfile, navController = rememberNavController())
+            UserProfileContent(userProfile = previewProfile, navController = rememberNavController(), uid = "preview_uid")
         }
     }
 }

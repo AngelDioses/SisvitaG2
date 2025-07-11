@@ -7,5 +7,5 @@ import org.koin.dsl.module
 
 val feedbackModule = module {
     single { FeedbackRepository(get(), get()) }
-    viewModel { FeedbackViewModel(get()) }
+    viewModel { FeedbackViewModel(get(), get()) }
 } 

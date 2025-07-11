@@ -47,6 +47,9 @@ import com.example.sisvitag2.ui.screens.specialist.FeedbackHistoryScreen
 import com.example.sisvitag2.ui.screens.specialist.SpecialistTestDetailScreen
 import com.example.sisvitag2.ui.screens.feedback.FeedbackScreen
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.sisvitag2.ui.screens.specialist.EmotionalAnalysisPendingScreen
+import com.example.sisvitag2.ui.screens.specialist.PendingEmotionalAnalysesScreen
+import com.example.sisvitag2.ui.screens.specialist.EmotionalAnalysisDetailScreen
 
 @Composable
 fun PendingApprovalScreen() {
@@ -129,8 +132,24 @@ fun AppNavHost(
             Log.d("NavGraph", "userEstado o userRol es null, esperando datos...")
             return@LaunchedEffect
         }
-        val pantallasPermitidasPersona = listOf("Inicio", "Test", "DoTest", "Feedbacks", "Cuenta", "Necesito ayuda", "Historial")
-        val pantallasPermitidasEspecialista = listOf("Inicio", "Tests Pendientes", "Historial de Feedback", "Cuenta", "DetalleTestEspecialista")
+        val pantallasPermitidasPersona = listOf("Inicio", "Test", "DoTest", "Feedbacks", "Cuenta", "Necesito ayuda", "Historial", "EditProfileRoute", "ChangePasswordRoute")
+        val pantallasPermitidasEspecialista = listOf(
+            "Inicio",
+            "Tests Pendientes",
+            "Análisis Emocionales Pendientes",
+            "Historial de Feedback",
+            "Cuenta",
+            "DetalleTestEspecialista",
+            "EmotionalAnalysisDetail",
+            "EditProfileRoute",
+            "ChangePasswordRoute"
+        )
+        val pantallasPermitidasAdmin = listOf(
+            "Inicio",
+            "Cuenta",
+            "EditProfileRoute",
+            "ChangePasswordRoute"
+        )
         when (userEstado) {
             "pendiente" -> {
                 if (currentRoute != "Pendiente") {
@@ -148,7 +167,7 @@ fun AppNavHost(
             }
             "aprobado" -> {
                 when (userRol) {
-                    3 -> if (currentRoute != "Inicio") {
+                    3 -> if (pantallasPermitidasAdmin.none { currentRoute.startsWith(it) }) {
                         navController.navigate("Inicio") {
                             popUpTo(0) { inclusive = true }
                         }
@@ -309,7 +328,37 @@ fun AppNavHost(
         }
         // ***** FIN DE NUEVAS RUTAS *****
         composable("Feedbacks") {
-            FeedbackScreen()
+            val sessionViewModel: SessionViewModel = koinViewModel()
+            val userId by sessionViewModel.userId
+            FeedbackScreen(userId = userId)
+        }
+        composable("AnalisisEmocionalPendiente") {
+            EmotionalAnalysisPendingScreen()
+        }
+        composable("Análisis Emocionales Pendientes") {
+            when {
+                userRol == null || userEstado == null -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        androidx.compose.material3.CircularProgressIndicator()
+                    }
+                }
+                userRol == 2 && userEstado == "aprobado" -> {
+                    PendingEmotionalAnalysesScreen(navController = navController)
+                }
+                else -> {
+                    PendingApprovalScreen()
+                }
+            }
+        }
+        composable(
+            route = "EmotionalAnalysisDetail/{analysisId}",
+            arguments = listOf(navArgument("analysisId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val analysisId = backStackEntry.arguments?.getString("analysisId") ?: ""
+            EmotionalAnalysisDetailScreen(
+                analysisId = analysisId,
+                navController = navController
+            )
         }
     }
 }
