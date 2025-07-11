@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detector de Depresión con IA - Análisis Completo con Captura en Tiempo Real</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .section {
+            min-height: auto;
+            padding: 2rem 0;
+        }
+        .section:not(:last-child) {
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .preview-container {
+            max-height: 400px;
+            overflow: hidden;
+            border-radius: 12px;
+        }
+        .preview-image {
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+        }
+        .preview-video {
+            width: 100%;
+            height: auto;
+            max-height: 400px;
+        }
+        .emotion-bar {
+            transition: width 0.8s ease-in-out;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .nav-active {
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+        }
+        .question-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-left: 4px solid #667eea;
+        }
+        .option-hover:hover {
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+        }
+        .camera-container {
+            position: relative;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+        .camera-video {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            background: #000;
+        }
+        .camera-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+        .camera-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .camera-btn:hover {
+            transform: scale(1.1);
+        }
+        .capture-btn {
+            background: #fff;
+            color: #667eea;
+            border: 3px solid #667eea;
+        }
+        .record-btn {
+            background: #ef4444;
+            color: #fff;
+        }
+        .record-btn.recording {
+            background: #dc2626;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .stop-btn {
+            background: #6b7280;
+            color: #fff;
+        }
+        .photo-preview {
+            max-width: 300px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Header -->
+    <header class="gradient-bg text-white py-4 sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-brain text-3xl"></i>
+                    <h1 class="text-2xl font-bold">Detector de Depresión IA</h1>
+                </div>
+                <nav class="hidden md:flex space-x-6">
+                    <a href="#home" class="nav-link px-4 py-2 rounded-lg transition-all duration-300 hover:bg-white hover:bg-opacity-20" onclick="showSection('home')">
+                        <i class="fas fa-home mr-2"></i>Inicio
+                    </a>
+                    <a href="#dashboard" class="nav-link px-4 py-2 rounded-lg transition-all duration-300 hover:bg-white hover:bg-opacity-20" onclick="showSection('dashboard')">
+                        <i class="fas fa-chart-line mr-2"></i>Dashboard
+                    </a>
+                    <a href="#test" class="nav-link px-4 py-2 rounded-lg transition-all duration-300 hover:bg-white hover:bg-opacity-20" onclick="showSection('test')">
+                        <i class="fas fa-clipboard-list mr-2"></i>Test PHQ-9
+                    </a>
+                </nav>
+                <div class="md:hidden">
+                    <button id="menuToggle" class="text-white">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="mobileMenu" class="hidden md:hidden mt-4 space-y-2">
+                <a href="#home" class="block px-4 py-2 rounded-lg hover:bg-white hover:bg-opacity-20" onclick="showSection('home')">
+                    <i class="fas fa-home mr-2"></i>Inicio
+                </a>
+                <a href="#dashboard" class="block px-4 py-2 rounded-lg hover:bg-white hover:bg-opacity-20" onclick="showSection('dashboard')">
+                    <i class="fas fa-chart-line mr-2"></i>Dashboard
+                </a>
+                <a href="#test" class="block px-4 py-2 rounded-lg hover:bg-white hover:bg-opacity-20" onclick="showSection('test')">
+                    <i class="fas fa-clipboard-list mr-2"></i>Test PHQ-9
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Home Section -->
+    <section id="home" class="section">
+        <div class="container mx-auto px-4">
+            <div class="max-w-4xl mx-auto text-center mb-12">
+                <h2 class="text-4xl font-bold text-gray-800 mb-6">Evaluación Integral de Bienestar Mental</h2>
+                <p class="text-xl text-gray-600 mb-8">Combina inteligencia artificial y análisis clínico para una evaluación completa de tu estado emocional con captura en tiempo real</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+                <div class="bg-white rounded-xl p-8 card-shadow">
+                    <div class="text-center mb-6">
+                        <i class="fas fa-face-smile text-5xl text-blue-500 mb-4"></i>
+                        <h3 class="text-2xl font-bold text-gray-800">Análisis de Emociones</h3>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-camera text-blue-500"></i>
+                            <span class="text-gray-700">Captura en tiempo real con cámara</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-video text-blue-500"></i>
+                            <span class="text-gray-700">Grabación de video para análisis</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-chart-bar text-blue-500"></i>
+                            <span class="text-gray-700">Análisis de emociones en tiempo real</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-upload text-blue-500"></i>
+                            <span class="text-gray-700">Subida de archivos existentes</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-brain text-blue-500"></i>
+                            <span class="text-gray-700">IA especializada en emociones</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl p-8 card-shadow">
+                    <div class="text-center mb-6">
+                        <i class="fas fa-clipboard-check text-5xl text-purple-500 mb-4"></i>
+                        <h3 class="text-2xl font-bold text-gray-800">Test PHQ-9 Personalizado</h3>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-check-circle text-purple-500"></i>
+                            <span class="text-gray-700">Cuestionario validado clínicamente</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-camera-retro text-purple-500"></i>
+                            <span class="text-gray-700">Captura facial para análisis personalizado</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-user-md text-purple-500"></i>
+                            <span class="text-gray-700">Estándar médico internacional</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-lightbulb text-purple-500"></i>
+                            <span class="text-gray-700">Recomendaciones híper-personalizadas</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-robot text-purple-500"></i>
+                            <span class="text-gray-700">Análisis con IA Gemini</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="max-w-4xl mx-auto mt-12">
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8 card-shadow">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">¿Qué es el PHQ-9?</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-700 mb-3">Propósito</h4>
+                            <p class="text-gray-600">El PHQ-9 es una herramienta de evaluación que mide la presencia y gravedad de los síntomas depresivos durante las últimas dos semanas.</p>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-700 mb-3">Innovación</h4>
+                            <p class="text-gray-600">Ahora incluye análisis facial para correlacionar expresiones emocionales con respuestas del cuestionario.</p>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-700 mb-3">Niveles de Evaluación</h4>
+                            <ul class="text-gray-600 space-y-1">
+                                <li>• 0-4: Mínima o ninguna depresión</li>
+                                <li>• 5-9: Depresión leve</li>
+                                <li>• 10-14: Depresión moderada</li>
+                                <li>• 15-19: Depresión moderadamente grave</li>
+                                <li>• 20-27: Depresión grave</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-700 mb-3">Beneficios Mejorados</h4>
+                            <ul class="text-gray-600 space-y-1">
+                                <li>• Análisis multimodal (texto + facial)</li>
+                                <li>• Recomendaciones ultra-personalizadas</li>
+                                <li>• Seguimiento del progreso en tiempo real</li>
+                                <li>• Detección temprana de cambios</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-12">
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button onclick="showSection('dashboard')" class="bg-blue-500 hover:bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105">
+                        <i class="fas fa-camera mr-2"></i>Analizar Emociones
+                    </button>
+                    <button onclick="showSection('test')" class="bg-purple-500 hover:bg-purple-600 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105">
+                        <i class="fas fa-clipboard-list mr-2"></i>Realizar Test PHQ-9
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dashboard Section -->
+    <section id="dashboard" class="section hidden">
+        <div class="container mx-auto px-4">
+            <div class="max-w-6xl mx-auto">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">Dashboard de Análisis Emocional</h2>
+                    <p class="text-lg text-gray-600">Captura fotos/videos en tiempo real o sube archivos existentes para analizar emociones</p>
+                </div>
+
+                <div class="grid lg:grid-cols-2 gap-8">
+                    <!-- Capture Section -->
+                    <div class="bg-white rounded-xl p-8 card-shadow">
+                        <h3 class="text-xl font-bold text-gray-800 mb-6">
+                            <i class="fas fa-camera mr-2 text-blue-500"></i>Captura en Tiempo Real
+                        </h3>
+                        
+                        <!-- Camera Controls -->
+                        <div class="space-y-6">
+                            <div class="text-center">
+                                <button id="startCameraBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300">
+                                    <i class="fas fa-camera mr-2"></i>Activar Cámara
+                                </button>
+                                <button id="stopCameraBtn" class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300 hidden ml-3">
+                                    <i class="fas fa-stop mr-2"></i>Detener Cámara
+                                </button>
+                            </div>
+
+                            <!-- Camera Preview -->
+                            <div id="cameraContainer" class="camera-container hidden">
+                                <video id="cameraVideo" class="camera-video" autoplay playsinline></video>
+                                <div class="camera-controls">
+                                    <button id="captureBtn" class="camera-btn capture-btn" title="Tomar Foto">
+                                        <i class="fas fa-camera"></i>
+                                    </button>
+                                    <button id="recordBtn" class="camera-btn record-btn" title="Grabar Video">
+                                        <i class="fas fa-video"></i>
+                                    </button>
+                                    <button id="stopRecordBtn" class="camera-btn stop-btn hidden" title="Detener Grabación">
+                                        <i class="fas fa-stop"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Captured Media Preview -->
+                            <div id="capturedMediaPreview" class="hidden">
+                                <h4 class="text-lg font-semibold text-gray-700 mb-3">Contenido Capturado:</h4>
+                                <div class="preview-container bg-gray-100 rounded-xl">
+                                    <img id="capturedImage" class="preview-image hidden" alt="Foto capturada">
+                                    <video id="capturedVideo" class="preview-video hidden" controls playsinline webkit-playsinline>
+                                        Tu navegador no soporta el elemento video.
+                                    </video>
+                                </div>
+                                <div class="mt-3 text-center">
+                                    <button id="analyzeCapturedBtn" class="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-2 px-6 rounded-lg font-semibold transition-all duration-300">
+                                        <i class="fas fa-brain mr-2"></i>Analizar Contenido Capturado
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-8 border-gray-200">
+
+                        <!-- Upload Section -->
+                        <h3 class="text-xl font-bold text-gray-800 mb-6">
+                            <i class="fas fa-upload mr-2 text-green-500"></i>Subir Archivo
+                        </h3>
+                        
+                        <form id="uploadForm" class="space-y-6">
+                            <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-400 transition-colors duration-300">
+                                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                                <p class="text-gray-600 mb-4">Arrastra y suelta tu archivo aquí o haz clic para seleccionar</p>
+                                <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.mp4" class="hidden" required>
+                                <button type="button" onclick="document.getElementById('fileInput').click()" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors duration-300">
+                                    Seleccionar Archivo
+                                </button>
+                                <p class="text-sm text-gray-500 mt-2">Formatos: JPEG, JPG, PNG, MP4</p>
+                            </div>
+                            
+                            <button type="submit" id="analyzeBtn" class="w-full bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white py-3 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-brain mr-2"></i>Analizar Archivo Subido
+                            </button>
+                        </form>
+
+                        <!-- File Preview -->
+                        <div id="filePreview" class="hidden mt-6">
+                            <h4 class="text-lg font-semibold text-gray-700 mb-3">Vista Previa:</h4>
+                            <div class="preview-container bg-gray-100 rounded-xl">
+                                <img id="previewImage" class="preview-image hidden" alt="Vista previa">
+                                <video id="previewVideo" class="preview-video hidden" controls playsinline webkit-playsinline>
+                                    <source id="videoSource" type="video/mp4">
+                                    Tu navegador no soporta el elemento video.
+                                </video>
+                            </div>
+                            <div class="mt-3 text-sm text-gray-600">
+                                <p id="fileInfo"></p>
+                            </div>
+                        </div>
+
+                        <!-- Loading -->
+                        <div id="loading" class="hidden text-center py-8">
+                            <div class="loading-spinner mx-auto mb-4"></div>
+                            <p class="text-gray-600">Analizando emociones...</p>
+                        </div>
+                    </div>
+
+                    <!-- Results Section -->
+                    <div class="bg-white rounded-xl p-8 card-shadow">
+                        <h3 class="text-xl font-bold text-gray-800 mb-6">
+                            <i class="fas fa-chart-bar mr-2 text-green-500"></i>Resultados del Análisis
+                        </h3>
+                        
+                        <div id="emotionResults" class="hidden">
+                            <div class="space-y-4" id="emotionBars"></div>
+                            
+                            <div class="mt-8">
+                                <canvas id="emotionChart" style="height: 300px;"></canvas>
+                            </div>
+
+                            <div class="mt-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg">
+                                <h4 class="font-semibold text-gray-700 mb-2">Interpretación:</h4>
+                                <p id="emotionInterpretation" class="text-gray-600"></p>
+                            </div>
+
+                            <div class="mt-4 flex justify-between text-sm text-gray-500">
+                                <span>Análisis completado: <span id="analysisTime"></span></span>
+                                <button onclick="exportResults()" class="text-blue-500 hover:text-blue-700">
+                                    <i class="fas fa-download mr-1"></i>Exportar Resultados
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="noResults" class="text-center py-12 text-gray-500">
+                            <i class="fas fa-chart-line text-6xl mb-4 opacity-50"></i>
+                            <p>Los resultados del análisis aparecerán aquí</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emotion History -->
+                <div class="mt-8 bg-white rounded-xl p-8 card-shadow">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-history mr-2 text-orange-500"></i>Historial de Análisis
+                    </h3>
+                    <div id="emotionHistory" class="space-y-4">
+                        <p class="text-gray-500 text-center py-4">No hay análisis previos</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Test PHQ-9 Section -->
+    <section id="test" class="section hidden">
+        <div class="container mx-auto px-4">
+            <div class="max-w-4xl mx-auto">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">Cuestionario PHQ-9 Personalizado</h2>
+                    <p class="text-lg text-gray-600">Evaluación de Bienestar Mental con Análisis Facial para Recomendaciones Ultra-Personalizadas</p>
+                </div>
+
+                <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-6 mb-8 border-l-4 border-yellow-400">
+                    <h3 class="text-lg font-semibold text-yellow-800 mb-2">
+                        <i class="fas fa-info-circle mr-2"></i>Instrucciones
+                    </h3>
+                    <p class="text-yellow-700">Durante las últimas dos semanas, ¿con qué frecuencia ha estado molestado por alguno de los siguientes problemas? Seleccione una opción por cada pregunta. Al finalizar, tomaremos una foto para personalizar aún más las recomendaciones.</p>
+                </div>
+
+                <form id="phq9Form" class="space-y-6">
+                    <div class="space-y-6">
+                        <!-- PHQ-9 Questions -->
+                        <div class="question-card rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">1. Poco interés o placer en hacer cosas</h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q1" value="0" class="mr-3 text-blue-500" required>
+                                    <span class="text-gray-700">Nunca (0)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q1" value="1" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Varios días (1)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q1" value="2" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Más de la mitad de los días (2)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q1" value="3" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Casi todos los días (3)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="question-card rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">2. Sentirse deprimido, triste o sin esperanza</h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q2" value="0" class="mr-3 text-blue-500" required>
+                                    <span class="text-gray-700">Nunca (0)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q2" value="1" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Varios días (1)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q2" value="2" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Más de la mitad de los días (2)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q2" value="3" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Casi todos los días (3)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="question-card rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">3. Dificultad para dormir o dormir demasiado</h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q3" value="0" class="mr-3 text-blue-500" required>
+                                    <span class="text-gray-700">Nunca (0)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q3" value="1" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Varios días (1)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q3" value="2" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Más de la mitad de los días (2)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q3" value="3" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Casi todos los días (3)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="question-card rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">4. Sentirse cansado o con poca energía</h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q4" value="0" class="mr-3 text-blue-500" required>
+                                    <span class="text-gray-700">Nunca (0)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q4" value="1" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Varios días (1)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q4" value="2" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Más de la mitad de los días (2)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q4" value="3" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Casi todos los días (3)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="question-card rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">5. Poco apetito o comer en exceso</h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q5" value="0" class="mr-3 text-blue-500" required>
+                                    <span class="text-gray-700">Nunca (0)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q5" value="1" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Varios días (1)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q5" value="2" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Más de la mitad de los días (2)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q5" value="3" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Casi todos los días (3)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="question-card rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">6. Sentirse mal consigo mismo o sentir que ha fallado o decepcionado a su familia o a usted mismo</h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q6" value="0" class="mr-3 text-blue-500" required>
+                                    <span class="text-gray-700">Nunca (0)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q6" value="1" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Varios días (1)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q6" value="2" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Más de la mitad de los días (2)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q6" value="3" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Casi todos los días (3)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="question-card rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">7. Dificultad para concentrarse en cosas, como leer el periódico o ver la televisión</h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q7" value="0" class="mr-3 text-blue-500" required>
+                                    <span class="text-gray-700">Nunca (0)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q7" value="1" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Varios días (1)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q7" value="2" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Más de la mitad de los días (2)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q7" value="3" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Casi todos los días (3)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="question-card rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">8. Moverse o hablar tan lento que otros lo noten, o lo contrario, estar tan inquieto que no puede quedarse quieto</h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q8" value="0" class="mr-3 text-blue-500" required>
+                                    <span class="text-gray-700">Nunca (0)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q8" value="1" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Varios días (1)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q8" value="2" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Más de la mitad de los días (2)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q8" value="3" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Casi todos los días (3)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="question-card rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">9. Pensamientos de que estaría mejor muerto o de hacerse daño de alguna manera</h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q9" value="0" class="mr-3 text-blue-500" required>
+                                    <span class="text-gray-700">Nunca (0)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q9" value="1" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Varios días (1)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q9" value="2" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Más de la mitad de los días (2)</span>
+                                </label>
+                                <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                    <input type="radio" name="q9" value="3" class="mr-3 text-blue-500">
+                                    <span class="text-gray-700">Casi todos los días (3)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Information -->
+                    <div class="bg-white rounded-xl p-8 card-shadow">
+                        <h3 class="text-xl font-bold text-gray-800 mb-6">Información Adicional para Recomendaciones Personalizadas</h3>
+                        
+                        <div class="space-y-6">
+                            <div>
+                                <h4 class="text-lg font-semibold text-gray-700 mb-4">¿Practica algún deporte o actividad física regularmente?</h4>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="checkbox" name="sports" value="running" class="mr-2 text-blue-500">
+                                        <span class="text-sm text-gray-700">Correr/Jogging</span>
+                                    </label>
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="checkbox" name="sports" value="gym" class="mr-2 text-blue-500">
+                                        <span class="text-sm text-gray-700">Gimnasio</span>
+                                    </label>
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="checkbox" name="sports" value="swimming" class="mr-2 text-blue-500">
+                                        <span class="text-sm text-gray-700">Natación</span>
+                                    </label>
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="checkbox" name="sports" value="yoga" class="mr-2 text-blue-500">
+                                        <span class="text-sm text-gray-700">Yoga/Pilates</span>
+                                    </label>
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="checkbox" name="sports" value="cycling" class="mr-2 text-blue-500">
+                                        <span class="text-sm text-gray-700">Ciclismo</span>
+                                    </label>
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="checkbox" name="sports" value="team_sports" class="mr-2 text-blue-500">
+                                        <span class="text-sm text-gray-700">Deportes de equipo</span>
+                                    </label>
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="checkbox" name="sports" value="walking" class="mr-2 text-blue-500">
+                                        <span class="text-sm text-gray-700">Caminar</span>
+                                    </label>
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="checkbox" name="sports" value="none" class="mr-2 text-blue-500">
+                                        <span class="text-sm text-gray-700">No practico deportes</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 class="text-lg font-semibold text-gray-700 mb-4">¿Cuál es su situación laboral/académica actual?</h4>
+                                <div class="space-y-3">
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="radio" name="work_status" value="student" class="mr-3 text-blue-500" required>
+                                        <span class="text-gray-700">Estudiante</span>
+                                    </label>
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="radio" name="work_status" value="employed" class="mr-3 text-blue-500">
+                                        <span class="text-gray-700">Empleado a tiempo completo</span>
+                                    </label>
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="radio" name="work_status" value="part_time" class="mr-3 text-blue-500">
+                                        <span class="text-gray-700">Empleado a tiempo parcial</span>
+                                    </label>
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="radio" name="work_status" value="unemployed" class="mr-3 text-blue-500">
+                                        <span class="text-gray-700">Desempleado</span>
+                                    </label>
+                                    <label class="flex items-center p-3 rounded-lg option-hover cursor-pointer transition-all duration-200">
+                                        <input type="radio" name="work_status" value="retired" class="mr-3 text-blue-500">
+                                        <span class="text-gray-700">Jubilado</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Photo Capture Section for Personalized Recommendations -->
+                    <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-8 card-shadow border-2 border-purple-200">
+                        <h3 class="text-xl font-bold text-gray-800 mb-6">
+                            <i class="fas fa-camera-retro mr-2 text-purple-500"></i>Captura Facial para Recomendaciones Ultra-Personalizadas
+                        </h3>
+                        
+                        <div class="bg-white rounded-lg p-6">
+                            <div class="text-center mb-6">
+                                <div class="bg-purple-100 rounded-full p-4 inline-block mb-4">
+                                    <i class="fas fa-user-circle text-4xl text-purple-500"></i>
+                                </div>
+                                <h4 class="text-lg font-semibold text-gray-700 mb-2">Análisis Facial Opcional</h4>
+                                <p class="text-gray-600">Capture una foto de su rostro para que nuestro análisis de IA pueda correlacionar sus expresiones emocionales con las respuestas del cuestionario, proporcionando recomendaciones aún más precisas.</p>
+                            </div>
+
+                            <div class="text-center">
+                                <button type="button" id="startTestCameraBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-all duration-300 mb-4">
+                                    <i class="fas fa-camera mr-2"></i>Activar Cámara para Foto
+                                </button>
+                                <button type="button" id="skipPhotoBtn" class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg transition-all duration-300 ml-3">
+                                    <i class="fas fa-skip-forward mr-2"></i>Omitir Foto
+                                </button>
+                            </div>
+
+                            <!-- Test Camera Preview -->
+                            <div id="testCameraContainer" class="camera-container hidden mt-6">
+                                <video id="testCameraVideo" class="camera-video" autoplay playsinline></video>
+                                <div class="camera-controls">
+                                    <button id="testCaptureBtn" class="camera-btn capture-btn" title="Tomar Foto">
+                                        <i class="fas fa-camera"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Test Photo Preview -->
+                            <div id="testPhotoPreview" class="hidden mt-6 text-center">
+                                <h4 class="text-lg font-semibold text-gray-700 mb-3">Foto Capturada:</h4>
+                                <img id="testCapturedPhoto" class="photo-preview mx-auto rounded-lg shadow-md" alt="Foto capturada para análisis">
+                                <div class="mt-4 space-x-3">
+                                    <button type="button" id="retakeTestPhotoBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-all duration-300">
+                                        <i class="fas fa-redo mr-2"></i>Retomar Foto
+                                    </button>
+                                    <button type="button" id="confirmTestPhotoBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-all duration-300">
+                                        <i class="fas fa-check mr-2"></i>Confirmar Foto
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="testPhotoConfirmed" class="hidden mt-6 text-center">
+                                <div class="bg-green-100 rounded-lg p-4">
+                                    <i class="fas fa-check-circle text-green-500 text-2xl mb-2"></i>
+                                    <p class="text-green-700 font-semibold">Foto confirmada para análisis personalizado</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <button type="submit" class="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-12 py-4 rounded-xl text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg">
+                            <i class="fas fa-brain mr-2"></i>Obtener Recomendaciones Ultra-Personalizadas
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Test Loading -->
+                <div id="testLoading" class="hidden text-center py-12">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-gray-600 text-lg">Generando recomendaciones ultra-personalizadas con análisis facial...</p>
+                </div>
+
+                <!-- Test Results -->
+                <div id="testResults" class="hidden mt-8">
+                    <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8 card-shadow">
+                        <div class="text-center mb-8">
+                            <div class="text-6xl font-bold text-gray-800 mb-2" id="scoreNumber">0</div>
+                            <div class="text-xl text-gray-600 mb-4" id="scoreLevel">Nivel de depresión</div>
+                            <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
+                                <div id="scoreBar" class="bg-gradient-to-r from-green-400 to-blue-500 h-3 rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Facial Analysis Results -->
+                        <div id="facialAnalysisResults" class="hidden bg-white rounded-xl p-6 mb-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                                <i class="fas fa-face-smile mr-2 text-blue-500"></i>Análisis Facial Complementario
+                            </h3>
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <div>
+                                    <h4 class="font-semibold text-gray-700 mb-2">Emociones Detectadas:</h4>
+                                    <div class="space-y-2" id="testEmotionBars"></div>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-gray-700 mb-2">Correlación:</h4>
+                                    <p id="emotionCorrelation" class="text-gray-600"></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl p-8">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-6">
+                                <i class="fas fa-lightbulb mr-2 text-yellow-500"></i>Recomendaciones Ultra-Personalizadas
+                            </h3>
+                            <div id="recommendationsText" class="prose max-w-none text-gray-700 leading-relaxed">
+                                Las recomendaciones aparecerán aquí...
+                            </div>
+                        </div>
+
+                        <div class="mt-6 text-center">
+                            <button onclick="exportTestResults()" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-colors duration-300">
+                                <i class="fas fa-download mr-2"></i>Exportar Resultados Completos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Global variables
+        let emotionChart = null;
+        let emotionHistory = JSON.parse(localStorage.getItem('emotionHistory') || '[]');
+        let currentStream = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let capturedImageData = null;
+        let testCapturedImageData = null;
+        
+        // API Configuration
+        const GEMINI_API_KEY = 'AIzaSyDxWQqQ6tW1727eFejS4sEos6GBhXLAYwo';
+        const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+        const EMOTION_API_URL = 'https://detect-emotions-3uyocih3lq-uc.a.run.app';
+
+        // Navigation
+        function showSection(sectionId) {
+            // Hide all sections
+            const sections = document.querySelectorAll('.section');
+            sections.forEach(section => section.classList.add('hidden'));
+            
+            // Show selected section
+            document.getElementById(sectionId).classList.remove('hidden');
+            document.getElementById(sectionId).classList.add('fade-in');
+            
+            // Update navigation
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => link.classList.remove('nav-active'));
+            
+            const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
+            if (activeLink) {
+                activeLink.classList.add('nav-active');
+            }
+        }
+
+        // Mobile menu toggle
+        document.getElementById('menuToggle').addEventListener('click', function() {
+            const mobileMenu = document.getElementById('mobileMenu');
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Camera functions
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 }, 
+                    audio: false 
+                });
+                currentStream = stream;
+                const video = document.getElementById('cameraVideo');
+                video.srcObject = stream;
+                
+                document.getElementById('cameraContainer').classList.remove('hidden');
+                document.getElementById('startCameraBtn').classList.add('hidden');
+                document.getElementById('stopCameraBtn').classList.remove('hidden');
+                
+                return true;
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                alert('No se pudo acceder a la cámara. Verifique los permisos.');
+                return false;
+            }
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            
+            document.getElementById('cameraContainer').classList.add('hidden');
+            document.getElementById('startCameraBtn').classList.remove('hidden');
+            document.getElementById('stopCameraBtn').classList.add('hidden');
+            
+            // Reset media recorder if active
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            capturedImageData = imageData;
+            
+            // Show preview
+            const capturedImage = document.getElementById('capturedImage');
+            capturedImage.src = imageData;
+            capturedImage.classList.remove('hidden');
+            
+            document.getElementById('capturedVideo').classList.add('hidden');
+            document.getElementById('capturedMediaPreview').classList.remove('hidden');
+        }
+
+        async function startRecording() {
+            if (!currentStream) return;
+            
+            recordedChunks = [];
+            
+            try {
+                mediaRecorder = new MediaRecorder(currentStream, {
+                    mimeType: 'video/webm;codecs=vp8'
+                });
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const capturedVideo = document.getElementById('capturedVideo');
+                    capturedVideo.src = url;
+                    capturedVideo.classList.remove('hidden');
+                    
+                    document.getElementById('capturedImage').classList.add('hidden');
+                    document.getElementById('capturedMediaPreview').classList.remove('hidden');
+                };
+                
+                mediaRecorder.start();
+                
+                document.getElementById('recordBtn').classList.add('recording', 'hidden');
+                document.getElementById('stopRecordBtn').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                alert('Error al iniciar la grabación.');
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                
+                document.getElementById('recordBtn').classList.remove('recording', 'hidden');
+                document.getElementById('stopRecordBtn').classList.add('hidden');
+            }
+        }
+
+        // Test Camera functions
+        async function startTestCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 }, 
+                    audio: false 
+                });
+                
+                const video = document.getElementById('testCameraVideo');
+                video.srcObject = stream;
+                
+                document.getElementById('testCameraContainer').classList.remove('hidden');
+                document.getElementById('startTestCameraBtn').classList.add('hidden');
+                
+                return stream;
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                alert('No se pudo acceder a la cámara. Verifique los permisos.');
+                return null;
+            }
+        }
+
+        function captureTestPhoto() {
+            const video = document.getElementById('testCameraVideo');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            testCapturedImageData = imageData;
+            
+            // Show preview
+            const testCapturedPhoto = document.getElementById('testCapturedPhoto');
+            testCapturedPhoto.src = imageData;
+            
+            document.getElementById('testPhotoPreview').classList.remove('hidden');
+            document.getElementById('testCameraContainer').classList.add('hidden');
+        }
+
+        function retakeTestPhoto() {
+            document.getElementById('testPhotoPreview').classList.add('hidden');
+            document.getElementById('testCameraContainer').classList.remove('hidden');
+            testCapturedImageData = null;
+        }
+
+        function confirmTestPhoto() {
+            document.getElementById('testPhotoPreview').classList.add('hidden');
+            document.getElementById('testPhotoConfirmed').classList.remove('hidden');
+            
+            // Stop camera
+            const video = document.getElementById('testCameraVideo');
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        function skipTestPhoto() {
+            testCapturedImageData = null;
+            document.getElementById('testPhotoConfirmed').classList.remove('hidden');
+            document.querySelector('#testPhotoConfirmed p').textContent = 'Análisis sin foto facial - usando solo respuestas del cuestionario';
+            document.querySelector('#testPhotoConfirmed p').className = 'text-blue-700 font-semibold';
+            document.querySelector('#testPhotoConfirmed i').className = 'fas fa-info-circle text-blue-500 text-2xl mb-2';
+        }
+
+        // Event listeners for camera controls
+        document.getElementById('startCameraBtn').addEventListener('click', startCamera);
+        document.getElementById('stopCameraBtn').addEventListener('click', stopCamera);
+        document.getElementById('captureBtn').addEventListener('click', capturePhoto);
+        document.getElementById('recordBtn').addEventListener('click', startRecording);
+        document.getElementById('stopRecordBtn').addEventListener('click', stopRecording);
+
+        // Test camera event listeners
+        document.getElementById('startTestCameraBtn').addEventListener('click', startTestCamera);
+        document.getElementById('testCaptureBtn').addEventListener('click', captureTestPhoto);
+        document.getElementById('retakeTestPhotoBtn').addEventListener('click', retakeTestPhoto);
+        document.getElementById('confirmTestPhotoBtn').addEventListener('click', confirmTestPhoto);
+        document.getElementById('skipPhotoBtn').addEventListener('click', skipTestPhoto);
+
+        // Analyze captured content
+        document.getElementById('analyzeCapturedBtn').addEventListener('click', async function() {
+            if (!capturedImageData) {
+                alert('No hay contenido capturado para analizar.');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('noResults').classList.add('hidden');
+            document.getElementById('emotionResults').classList.add('hidden');
+            
+            try {
+                // Convert base64 to blob
+                const response = await fetch(capturedImageData);
+                const blob = await response.blob();
+                
+                const formData = new FormData();
+                formData.append('file', blob, 'captured_image.jpg');
+                
+                const apiResponse = await fetch(EMOTION_API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!apiResponse.ok) {
+                    throw new Error('Error en la respuesta del servidor');
+                }
+                
+                const data = await apiResponse.json();
+                displayEmotionResults(data);
+                
+                // Save to history
+                const analysisResult = {
+                    timestamp: new Date().toISOString(),
+                    filename: 'captured_image.jpg',
+                    emotions: data,
+                    source: 'camera_capture'
+                };
+                emotionHistory.unshift(analysisResult);
+                if (emotionHistory.length > 10) {
+                    emotionHistory = emotionHistory.slice(0, 10);
+                }
+                localStorage.setItem('emotionHistory', JSON.stringify(emotionHistory));
+                updateEmotionHistory();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al analizar el contenido capturado. Verifique que el servidor esté ejecutándose.');
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        });
+
+        // File upload handling
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                previewFile(file);
+            }
+        });
+
+        function previewFile(file) {
+            const preview = document.getElementById('filePreview');
+            const previewImage = document.getElementById('previewImage');
+            const previewVideo = document.getElementById('previewVideo');
+            const videoSource = document.getElementById('videoSource');
+            const fileInfo = document.getElementById('fileInfo');
+            
+            // Hide both preview elements
+            previewImage.classList.add('hidden');
+            previewVideo.classList.add('hidden');
+            
+            // Show file info
+            const fileSize = (file.size / 1024 / 1024).toFixed(2);
+            fileInfo.textContent = `Archivo: ${file.name} (${fileSize} MB)`;
+            
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    previewImage.classList.remove('hidden');
+                    preview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            } else if (file.type.startsWith('video/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    videoSource.src = e.target.result;
+                    previewVideo.load();
+                    previewVideo.classList.remove('hidden');
+                    preview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Emotion analysis
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Por favor selecciona un archivo.');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('noResults').classList.add('hidden');
+            document.getElementById('emotionResults').classList.add('hidden');
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch(EMOTION_API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta del servidor');
+                }
+                
+                const data = await response.json();
+                displayEmotionResults(data);
+                
+                // Save to history
+                const analysisResult = {
+                    timestamp: new Date().toISOString(),
+                    filename: file.name,
+                    emotions: data,
+                    source: 'file_upload'
+                };
+                emotionHistory.unshift(analysisResult);
+                if (emotionHistory.length > 10) {
+                    emotionHistory = emotionHistory.slice(0, 10);
+                }
+                localStorage.setItem('emotionHistory', JSON.stringify(emotionHistory));
+                updateEmotionHistory();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al analizar las emociones. Verifique que el servidor esté ejecutándose en localhost:5000');
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        });
+
+        function displayEmotionResults(emotions) {
+            console.log('Raw emotion values:', emotions);
+            const emotionBars = document.getElementById('emotionBars');
+            const emotionResults = document.getElementById('emotionResults');
+            const analysisTime = document.getElementById('analysisTime');
+            
+            // Clear previous results
+            emotionBars.innerHTML = '';
+            
+            // Create emotion bars
+            const emotionColors = {
+                'angry': 'bg-red-500',
+                'disgust': 'bg-yellow-600',
+                'fear': 'bg-purple-500',
+                'happy': 'bg-green-500',
+                'sad': 'bg-blue-500',
+                'surprise': 'bg-pink-500',
+                'neutral': 'bg-gray-500'
+            };
+            
+            const emotionLabels = {
+                'angry': 'Enojado',
+                'disgust': 'Disgusto',
+                'fear': 'Miedo',
+                'happy': 'Feliz',
+                'sad': 'Triste',
+                'surprise': 'Sorprendido',
+                'neutral': 'Neutral'
+            };
+            
+            // Convert emotions to array and sort by value
+            const emotionArray = Object.entries(emotions)
+                .map(([emotion, value]) => ({
+                    emotion: emotion.toLowerCase(),
+                    value: parseFloat(value) || 0,
+                    label: emotionLabels[emotion.toLowerCase()] || emotion
+                }))
+                .sort((a, b) => b.value - a.value);
+            
+            // Create bars
+            emotionArray.forEach(({emotion, value, label}) => {
+                const percentage = value;
+                const colorClass = emotionColors[emotion] || 'bg-gray-500';
+                
+                const barHTML = `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center space-x-3 flex-1">
+                            <span class="font-medium text-gray-700 w-20">${label}</span>
+                            <div class="flex-1 bg-gray-200 rounded-full h-4">
+                                <div class="${colorClass} emotion-bar h-4 rounded-full transition-all duration-1000 ease-out" 
+                                     style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                        <span class="text-sm font-semibold text-gray-600 ml-3">${percentage}%</span>
+                    </div>
+                `;
+                emotionBars.innerHTML += barHTML;
+            });
+            
+            // Create chart
+            createEmotionChart(emotionArray);
+            
+            // Generate interpretation
+            generateInterpretation(emotionArray);
+            
+            // Set analysis time
+            analysisTime.textContent = new Date().toLocaleString();
+            
+            // Show results
+            emotionResults.classList.remove('hidden');
+        }
+
+        function createEmotionChart(emotionArray) {
+            const ctx = document.getElementById('emotionChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (emotionChart) {
+                emotionChart.destroy();
+            }
+            
+            const colors = [
+                '#ef4444', '#eab308', '#8b5cf6', '#22c55e', 
+                '#3b82f6', '#ec4899', '#6b7280'
+            ];
+            
+            emotionChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: emotionArray.map(e => e.label),
+                    datasets: [{
+                        data: emotionArray.map(e => e.value),
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.parsed.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateInterpretation(emotionArray) {
+            const interpretation = document.getElementById('emotionInterpretation');
+            const dominant = emotionArray[0];
+            
+            let message = '';
+            
+            if (dominant.emotion === 'happy') {
+                message = 'Se detecta una expresión predominantemente positiva. Esto puede indicar un estado emocional favorable.';
+            } else if (dominant.emotion === 'sad') {
+                message = 'Se detecta tristeza como emoción dominante. Esto podría indicar la necesidad de apoyo emocional.';
+            } else if (dominant.emotion === 'angry') {
+                message = 'Se detecta enojo como emoción principal. Esto podría sugerir estrés o frustración.';
+            } else if (dominant.emotion === 'fear') {
+                message = 'Se detecta miedo como emoción dominante. Esto podría indicar ansiedad o preocupación.';
+            } else if (dominant.emotion === 'neutral') {
+                message = 'Se detecta una expresión neutral. Esto es común en estados emocionales equilibrados.';
+            } else {
+                message = `Se detecta ${dominant.label.toLowerCase()} como emoción principal con un ${Math.round(dominant.value)}% de confianza.`;
+            }
+            
+            interpretation.textContent = message;
+        }
+
+        function updateEmotionHistory() {
+            const historyContainer = document.getElementById('emotionHistory');
+            
+            if (emotionHistory.length === 0) {
+                historyContainer.innerHTML = '<p class="text-gray-500 text-center py-4">No hay análisis previos</p>';
+                return;
+            }
+            
+            historyContainer.innerHTML = '';
+            
+            emotionHistory.forEach((analysis, index) => {
+                const date = new Date(analysis.timestamp).toLocaleString();
+                const dominantEmotion = Object.entries(analysis.emotions)
+                    .reduce((a, b) => parseFloat(a[1]) > parseFloat(b[1]) ? a : b);
+                
+                const sourceIcon = analysis.source === 'camera_capture' ? 'fas fa-camera' : 'fas fa-upload';
+                const sourceText = analysis.source === 'camera_capture' ? 'Capturada' : 'Subida';
+                
+                const historyItem = `
+                    <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-1">
+                                    <i class="${sourceIcon} text-blue-500"></i>
+                                    <h4 class="font-semibold text-gray-800">${analysis.filename}</h4>
+                                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">${sourceText}</span>
+                                </div>
+                                <p class="text-sm text-gray-600">${date}</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-sm font-medium text-gray-700">Emoción dominante:</span>
+                                <div class="text-lg font-bold text-blue-600">${dominantEmotion[0]} (${Math.round(parseFloat(dominantEmotion[1]))}%)</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                historyContainer.innerHTML += historyItem;
+            });
+        }
+
+        // PHQ-9 Test handling
+        document.getElementById('phq9Form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Show loading
+            document.getElementById('testLoading').classList.remove('hidden');
+            document.getElementById('testResults').classList.add('hidden');
+            
+            // Calculate PHQ-9 score
+            let totalScore = 0;
+            for (let i = 1; i <= 9; i++) {
+                const answer = document.querySelector(`input[name="q${i}"]:checked`);
+                if (answer) {
+                    totalScore += parseInt(answer.value);
+                }
+            }
+            
+            // Determine depression level
+            let depressionLevel = '';
+            let scorePercentage = 0;
+            
+            if (totalScore <= 4) {
+                depressionLevel = 'Mínima o ninguna';
+                scorePercentage = 15;
+            } else if (totalScore <= 9) {
+                depressionLevel = 'Leve';
+                scorePercentage = 35;
+            } else if (totalScore <= 14) {
+                depressionLevel = 'Moderada';
+                scorePercentage = 55;
+            } else if (totalScore <= 19) {
+                depressionLevel = 'Moderadamente grave';
+                scorePercentage = 75;
+            } else {
+                depressionLevel = 'Grave';
+                scorePercentage = 95;
+            }
+            
+            // Collect additional information
+            const sports = Array.from(document.querySelectorAll('input[name="sports"]:checked')).map(el => el.value);
+            const workStatus = document.querySelector('input[name="work_status"]:checked')?.value || '';
+            
+            // Analyze facial photo if available
+            let facialAnalysis = null;
+            if (testCapturedImageData) {
+                try {
+                    const response = await fetch(testCapturedImageData);
+                    const blob = await response.blob();
+                    
+                    const formData = new FormData();
+                    formData.append('file', blob, 'test_photo.jpg');
+                    
+                    const apiResponse = await fetch(EMOTION_API_URL, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (apiResponse.ok) {
+                        facialAnalysis = await apiResponse.json();
+                    }
+                } catch (error) {
+                    console.error('Error analyzing facial photo:', error);
+                }
+            }
+            
+            // Create prompt for Gemini
+            let prompt = `
+                Como psicólogo especializado, proporciona recomendaciones ultra-personalizadas basadas en los siguientes resultados del cuestionario PHQ-9:
+
+                Puntaje PHQ-9: ${totalScore}/27
+                Nivel de depresión: ${depressionLevel}
+                
+                Información adicional del usuario:
+                - Deportes/Actividad física: ${sports.length > 0 ? sports.join(', ') : 'No especificado'}
+                - Situación laboral/académica: ${workStatus || 'No especificado'}
+            `;
+            
+            if (facialAnalysis) {
+                const dominantEmotion = Object.entries(facialAnalysis)
+                    .reduce((a, b) => parseFloat(a[1]) > parseFloat(b[1]) ? a : b);
+                
+                prompt += `
+                
+                ANÁLISIS FACIAL COMPLEMENTARIO:
+                Emoción dominante detectada: ${dominantEmotion[0]} (${Math.round(parseFloat(dominantEmotion[1]))}%)
+                Distribución emocional completa: ${Object.entries(facialAnalysis).map(([emotion, value]) => `${emotion}: ${Math.round(parseFloat(value))}%`).join(', ')}
+                
+                Por favor, correlaciona este análisis facial con las respuestas del cuestionario para identificar posibles discrepancias o confirmaciones, y ajusta las recomendaciones en consecuencia.
+                `;
+            }
+            
+            prompt += `
+                Por favor, proporciona recomendaciones específicas y ultra-personalizadas que incluyan:
+                1. Estrategias de autocuidado adaptadas a sus intereses y actividades específicas
+                2. Sugerencias para mejorar el bienestar mental basadas en su perfil
+                3. Recomendaciones sobre cuándo buscar ayuda profesional
+                4. Actividades específicas basadas en sus preferencias deportivas y situación laboral
+                ${facialAnalysis ? '5. Integración del análisis facial con las respuestas del cuestionario' : ''}
+                
+                Mantén un tono empático, esperanzador y profesional. Las recomendaciones deben ser prácticas, aplicables y altamente personalizadas.
+            `;
+            
+            try {
+                const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: prompt
+                            }]
+                        }]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                    const recommendations = data.candidates[0].content.parts[0].text;
+                    
+                    // Display results
+                    document.getElementById('scoreNumber').textContent = totalScore;
+                    document.getElementById('scoreLevel').textContent = depressionLevel;
+                    document.getElementById('scoreBar').style.width = scorePercentage + '%';
+                    document.getElementById('recommendationsText').innerHTML = 
+                        recommendations.replace(/\n/g, '<br>');
+                    
+                    // Display facial analysis results if available
+                    if (facialAnalysis) {
+                        displayTestFacialAnalysis(facialAnalysis, totalScore, depressionLevel);
+                    }
+                    
+                    document.getElementById('testLoading').classList.add('hidden');
+                    document.getElementById('testResults').classList.remove('hidden');
+                    
+                } else {
+                    throw new Error('Respuesta inválida de la API');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('testLoading').classList.add('hidden');
+                alert('Error al generar recomendaciones. Por favor, inténtelo de nuevo.');
+            }
+        });
+
+        function displayTestFacialAnalysis(emotions, phqScore, phqLevel) {
+            const facialResults = document.getElementById('facialAnalysisResults');
+            const testEmotionBars = document.getElementById('testEmotionBars');
+            const emotionCorrelation = document.getElementById('emotionCorrelation');
+            
+            // Clear previous results
+            testEmotionBars.innerHTML = '';
+            
+            const emotionColors = {
+                'angry': 'bg-red-500',
+                'disgust': 'bg-yellow-600',
+                'fear': 'bg-purple-500',
+                'happy': 'bg-green-500',
+                'sad': 'bg-blue-500',
+                'surprise': 'bg-pink-500',
+                'neutral': 'bg-gray-500'
+            };
+            
+            const emotionLabels = {
+                'angry': 'Enojado',
+                'disgust': 'Disgusto',
+                'fear': 'Miedo',
+                'happy': 'Feliz',
+                'sad': 'Triste',
+                'surprise': 'Sorprendido',
+                'neutral': 'Neutral'
+            };
+            
+            // Convert emotions to array and sort by value
+            const emotionArray = Object.entries(emotions)
+                .map(([emotion, value]) => ({
+                    emotion: emotion.toLowerCase(),
+                    value: parseFloat(value) || 0,
+                    label: emotionLabels[emotion.toLowerCase()] || emotion
+                }))
+                .sort((a, b) => b.value - a.value);
+            
+            // Create emotion bars for test
+            emotionArray.slice(0, 4).forEach(({emotion, value, label}) => {
+                const percentage = value;
+                const colorClass = emotionColors[emotion] || 'bg-gray-500';
+                
+                const barHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700 w-16">${label}</span>
+                        <div class="flex-1 bg-gray-200 rounded-full h-2 mx-2">
+                            <div class="${colorClass} h-2 rounded-full transition-all duration-1000 ease-out" 
+                                 style="width: ${percentage}%"></div>
+                        </div>
+                        <span class="text-xs text-gray-600">${Math.round(percentage)}%</span>
+                    </div>
+                `;
+                testEmotionBars.innerHTML += barHTML;
+            });
+            
+            // Generate correlation analysis
+            const dominantEmotion = emotionArray[0];
+            let correlation = '';
+            
+            if (phqScore >= 15 && (dominantEmotion.emotion === 'sad' || dominantEmotion.emotion === 'fear')) {
+                correlation = 'Alta correlación: La expresión facial confirma los síntomas reportados en el cuestionario.';
+            } else if (phqScore >= 10 && dominantEmotion.emotion === 'happy') {
+                correlation = 'Posible discrepancia: La expresión facial sugiere un estado más positivo que las respuestas del cuestionario. Esto podría indicar mecanismos de afrontamiento o enmascaramiento emocional.';
+            } else if (phqScore <= 4 && dominantEmotion.emotion === 'happy') {
+                correlation = 'Excelente correlación: Tanto el cuestionario como la expresión facial indican un estado emocional positivo.';
+            } else {
+                correlation = `Análisis mixto: El cuestionario indica ${phqLevel.toLowerCase()} mientras que la expresión facial muestra predominantemente ${dominantEmotion.label.toLowerCase()}. Esto proporciona una perspectiva más completa de su estado emocional.`;
+            }
+            
+            emotionCorrelation.textContent = correlation;
+            facialResults.classList.remove('hidden');
+        }
+
+        // Sports checkbox validation
+        document.querySelectorAll('input[name="sports"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.value === 'none' && this.checked) {
+                    document.querySelectorAll('input[name="sports"]').forEach(cb => {
+                        if (cb.value !== 'none') cb.checked = false;
+                    });
+                } else if (this.value !== 'none' && this.checked) {
+                    document.querySelector('input[name="sports"][value="none"]').checked = false;
+                }
+            });
+        });
+
+        // Export functions
+        function exportResults() {
+            const results = {
+                timestamp: new Date().toISOString(),
+                emotions: emotionHistory[0]?.emotions || {},
+                analysis: document.getElementById('emotionInterpretation').textContent,
+                source: emotionHistory[0]?.source || 'unknown'
+            };
+            
+            const dataStr = JSON.stringify(results, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `emotion_analysis_${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        function exportTestResults() {
+            const results = {
+                timestamp: new Date().toISOString(),
+                phq9_score: document.getElementById('scoreNumber').textContent,
+                depression_level: document.getElementById('scoreLevel').textContent,
+                recommendations: document.getElementById('recommendationsText').textContent,
+                facial_analysis_included: document.getElementById('facialAnalysisResults').classList.contains('hidden') ? false : true
+            };
+            
+            if (!document.getElementById('facialAnalysisResults').classList.contains('hidden')) {
+                results.facial_correlation = document.getElementById('emotionCorrelation').textContent;
+            }
+            
+            const dataStr = JSON.stringify(results, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `phq9_complete_results_${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            showSection('home');
+            updateEmotionHistory();
+        });
+    </script>
+</body>
+</html>
