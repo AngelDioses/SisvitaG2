@@ -49,6 +49,18 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.androidx.compose.get
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.Canvas
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.with
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @Composable
 fun CameraScreen(navController: NavController) {
@@ -269,11 +281,15 @@ fun CameraContent(
     }
 }
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun AnalysisResultsOverlay(
     result: EmotionalAnalysisResponse,
     onClose: () -> Unit
 ) {
+    var selectedTabIndex by remember { mutableStateOf(0) }
+    val tabs = listOf("Gráfico de Barras", "Gráfico de Pastel")
+    
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -283,7 +299,8 @@ fun AnalysisResultsOverlay(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(32.dp),
+                .padding(32.dp)
+                .padding(bottom = 120.dp), // Agregar padding extra abajo para evitar superposición
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
@@ -311,14 +328,42 @@ fun AnalysisResultsOverlay(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Mostrar todas las emociones
-                EmotionBar("Feliz", result.happy, result.getTotalEmotions())
-                EmotionBar("Triste", result.sad, result.getTotalEmotions())
-                EmotionBar("Enojado", result.angry, result.getTotalEmotions())
-                EmotionBar("Miedo", result.fear, result.getTotalEmotions())
-                EmotionBar("Sorpresa", result.surprise, result.getTotalEmotions())
-                EmotionBar("Disgusto", result.disgust, result.getTotalEmotions())
-                EmotionBar("Neutral", result.neutral, result.getTotalEmotions())
+                // Pestañas
+                TabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTabIndex == index,
+                            onClick = { selectedTabIndex = index },
+                            text = { Text(title) }
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Contenido de las pestañas
+                AnimatedContent(
+                    targetState = selectedTabIndex,
+                    transitionSpec = {
+                        slideInHorizontally(
+                            initialOffsetX = { if (targetState > initialState) it else -it },
+                            animationSpec = tween(300)
+                        ) + fadeIn(animationSpec = tween(300)) with
+                        slideOutHorizontally(
+                            targetOffsetX = { if (targetState > initialState) -it else it },
+                            animationSpec = tween(300)
+                        ) + fadeOut(animationSpec = tween(300))
+                    },
+                    label = "TabContent"
+                ) { tabIndex ->
+                    when (tabIndex) {
+                        0 -> BarChartContent(result = result)
+                        1 -> PieChartContent(result = result)
+                    }
+                }
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
@@ -372,6 +417,185 @@ fun EmotionBar(
                 .clip(RoundedCornerShape(4.dp)),
             color = MaterialTheme.colorScheme.primary,
             trackColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    }
+}
+
+@Composable
+fun BarChartContent(result: EmotionalAnalysisResponse) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(320.dp)
+    ) {
+        item {
+            Text(
+                text = "Distribución de Emociones",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+        
+        item {
+            EmotionBar("Feliz", result.happy, result.getTotalEmotions())
+        }
+        item {
+            EmotionBar("Triste", result.sad, result.getTotalEmotions())
+        }
+        item {
+            EmotionBar("Enojado", result.angry, result.getTotalEmotions())
+        }
+        item {
+            EmotionBar("Miedo", result.fear, result.getTotalEmotions())
+        }
+        item {
+            EmotionBar("Sorpresa", result.surprise, result.getTotalEmotions())
+        }
+        item {
+            EmotionBar("Disgusto", result.disgust, result.getTotalEmotions())
+        }
+        item {
+            EmotionBar("Neutral", result.neutral, result.getTotalEmotions())
+        }
+    }
+}
+
+@Composable
+fun PieChartContent(result: EmotionalAnalysisResponse) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(320.dp)
+    ) {
+        item {
+            Text(
+                text = "Distribución de Emociones",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+        
+        item {
+            PieChartCompose(result = result)
+        }
+    }
+}
+
+@Composable
+fun PieChartCompose(result: EmotionalAnalysisResponse) {
+    val total = result.getTotalEmotions()
+    val emotions = listOf(
+        Triple("Feliz", result.happy, Color(0xFF4CAF50)),
+        Triple("Triste", result.sad, Color(0xFF2196F3)),
+        Triple("Enojado", result.angry, Color(0xFFF44336)),
+        Triple("Miedo", result.fear, Color(0xFF9C27B0)),
+        Triple("Sorpresa", result.surprise, Color(0xFFFF9800)),
+        Triple("Disgusto", result.disgust, Color(0xFF795548)),
+        Triple("Neutral", result.neutral, Color(0xFF607D8B))
+    )
+    val filtered = emotions.filter { it.second > 0 }
+    if (total == 0 || filtered.isEmpty()) {
+        Text(
+            text = "No hay datos de emociones disponibles",
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(16.dp)
+        )
+        return
+    }
+    val proportions = filtered.map { it.second.toFloat() / total }
+    val colors = filtered.map { it.third }
+    val labels = filtered.map { it.first }
+    val values = filtered.map { it.second }
+    val sweepAngles = proportions.map { it * 360f }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Gráfico de pastel centrado
+        Canvas(
+            modifier = Modifier
+                .size(140.dp)
+                .padding(16.dp)
+        ) {
+            var startAngle = -90f
+            for (i in sweepAngles.indices) {
+                drawArc(
+                    color = colors[i],
+                    startAngle = startAngle,
+                    sweepAngle = sweepAngles[i],
+                    useCenter = true
+                )
+                startAngle += sweepAngles[i]
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Leyenda debajo del gráfico
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Start
+        ) {
+            for (i in filtered.indices) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(colors[i], CircleShape)
+                    )
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    Text(
+                        text = "${labels[i]}: ${values[i]} (${String.format("%.1f", proportions[i]*100)}%)",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EmotionLegendItem(
+    emotionName: String,
+    value: Int,
+    total: Int,
+    color: Color
+) {
+    val percentage = if (total > 0) (value.toFloat() / total * 100) else 0f
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .background(color, CircleShape)
+        )
+        
+        Spacer(modifier = Modifier.width(8.dp))
+        
+        Text(
+            text = "$emotionName: $value (${String.format("%.1f", percentage)}%)",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }

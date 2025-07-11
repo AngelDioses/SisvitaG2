@@ -116,6 +116,8 @@ dependencies {
     // --- OkHttp para llamadas a API ---
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+
+
     // --- Dependencias Opcionales (Eliminar si no se usan) ---
     // implementation(libs.volley)
     // implementation(libs.androidx.room.runtime.android)
