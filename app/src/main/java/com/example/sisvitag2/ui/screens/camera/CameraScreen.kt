@@ -61,6 +61,13 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.style.TextAlign
+import kotlin.math.cos
+import kotlin.math.sin
+import androidx.compose.ui.graphics.drawscope.Stroke
 
 @Composable
 fun CameraScreen(navController: NavController) {
@@ -508,7 +515,7 @@ fun PieChartContent(result: EmotionalAnalysisResponse) {
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
-            .height(320.dp)
+            .height(480.dp) // Aumentar altura para acomodar el nuevo gráfico
     ) {
         item {
             Text(
@@ -522,6 +529,12 @@ fun PieChartContent(result: EmotionalAnalysisResponse) {
         
         item {
             PieChartCompose(result = result)
+        }
+        
+        // Nuevo gráfico de radar
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+            RadarChartCompose(result = result)
         }
     }
 }
@@ -784,7 +797,7 @@ fun ErrorOverlay(
                     text = error,
                     fontSize = 16.sp,
                     color = MaterialTheme.colorScheme.onErrorContainer,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center
                 )
                 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -832,6 +845,133 @@ fun CameraPreview(
         }, ContextCompat.getMainExecutor(context))
     }
     AndroidView(modifier = Modifier.fillMaxSize(), factory = { previewView })
+}
+
+@Composable
+fun RadarChartCompose(result: EmotionalAnalysisResponse) {
+    val total = result.getTotalEmotions()
+    val emotions = listOf(
+        Triple("Feliz", result.happy, Color(0xFF4CAF50)),
+        Triple("Triste", result.sad, Color(0xFF2196F3)),
+        Triple("Enojado", result.angry, Color(0xFFF44336)),
+        Triple("Miedo", result.fear, Color(0xFF9C27B0)),
+        Triple("Sorpresa", result.surprise, Color(0xFFFF9800)),
+        Triple("Disgusto", result.disgust, Color(0xFF795548)),
+        Triple("Neutral", result.neutral, Color(0xFF607D8B))
+    )
+    val filtered = emotions.filter { it.second > 0 }
+    
+    if (total == 0 || filtered.isEmpty()) {
+        return
+    }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Perfil Emocional Radar",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        
+        Canvas(
+            modifier = Modifier
+                .size(160.dp)
+                .padding(8.dp)
+        ) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val radius = size.minDimension / 2f * 0.8f
+            val angleStep = 360f / filtered.size
+            
+            // Dibujar círculos concéntricos (guías)
+            for (i in 1..5) {
+                val circleRadius = radius * (i / 5f)
+                drawCircle(
+                    color = Color.Gray.copy(alpha = 0.2f),
+                    radius = circleRadius,
+                    center = center,
+                    style = Stroke(width = 1.dp.toPx())
+                )
+            }
+            
+            // Dibujar ejes
+            filtered.forEachIndexed { index, _ ->
+                val angle = Math.toRadians((index * angleStep - 90).toDouble())
+                val endX = center.x + (radius * cos(angle)).toFloat()
+                val endY = center.y + (radius * sin(angle)).toFloat()
+                
+                drawLine(
+                    color = Color.Gray.copy(alpha = 0.4f),
+                    start = center,
+                    end = Offset(endX, endY),
+                    strokeWidth = 1.dp.toPx()
+                )
+            }
+            
+            // Dibujar polígono de datos
+            val dataPoints = mutableListOf<Offset>()
+            filtered.forEachIndexed { index, emotion ->
+                val percentage = emotion.second.toFloat() / total
+                val normalizedValue = percentage
+                val angle = Math.toRadians((index * angleStep - 90).toDouble())
+                val pointRadius = radius * normalizedValue
+                val x = center.x + (pointRadius * cos(angle)).toFloat()
+                val y = center.y + (pointRadius * sin(angle)).toFloat()
+                dataPoints.add(Offset(x, y))
+            }
+            
+            // Conectar puntos del polígono
+            for (i in dataPoints.indices) {
+                val nextIndex = (i + 1) % dataPoints.size
+                drawLine(
+                    color = Color(0xFF2196F3), // Azul primario
+                    start = dataPoints[i],
+                    end = dataPoints[nextIndex],
+                    strokeWidth = 2.dp.toPx()
+                )
+            }
+            
+            // Dibujar puntos de datos
+            dataPoints.forEachIndexed { index, point ->
+                val emotion = filtered[index]
+                drawCircle(
+                    color = emotion.third,
+                    radius = 4.dp.toPx(),
+                    center = point
+                )
+            }
+        }
+        
+        // Leyenda compacta
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = 8.dp)
+        ) {
+            items(filtered) { emotion ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(emotion.third, CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = emotion.first,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontSize = 10.sp
+                    )
+                }
+            }
+        }
+    }
 }
 
 private fun translateEmotionToSpanish(emotion: String): String {
