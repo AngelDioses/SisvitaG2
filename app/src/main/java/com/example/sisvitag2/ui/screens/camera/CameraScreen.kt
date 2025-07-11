@@ -432,7 +432,7 @@ fun EmotionBar(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "$value (${String.format("%.1f", percentage)}%)",
+                text = "(${String.format("%.1f", percentage)}%)",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -729,11 +729,11 @@ fun EmotionLegendItem(
         
         Spacer(modifier = Modifier.width(8.dp))
         
-        Text(
-            text = "$emotionName: $value (${String.format("%.1f", percentage)}%)",
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+                            Text(
+                        text = "$emotionName (${String.format("%.1f", percentage)}%)",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
     }
 }
 
