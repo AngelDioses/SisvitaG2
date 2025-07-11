@@ -10,46 +10,83 @@ service cloud.firestore {
     match /tipos_usuario/{tipoId} { allow read: if true; allow write: if false; }
     match /tiposUsuario/{tipoId} { allow read: if true; allow write: if false; }
 
+    // Permitir que cualquier usuario autenticado cree y lea sus propios envíos de test
+    match /test_submissions/{submissionId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null;
+      // Permitir que un especialista autenticado actualice el estado del test y asocie feedback
+      allow update: if request.auth != null
+        && (
+          // Solo permitir actualizar estos campos
+          request.resource.data.keys().hasAny(['status', 'feedbackId', 'specialistId', 'specialistName'])
+        );
+      allow delete: if false;
+    }
+
+    // Permitir que cada usuario lea y escriba solo su propio historial
+    match /user_history/{userId}/tests/{testId} {
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Colección de feedback de especialistas
+    match /specialist_feedback/{feedbackId} {
+      // Solo el especialista autenticado puede crear feedback
+      allow create: if request.auth != null && request.resource.data.specialistId == request.auth.uid;
+      // Permitir leer si eres el especialista o el usuario destinatario
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.specialistId ||
+        request.auth.uid == resource.data.userId
+      );
+      allow update, delete: if false;
+    }
+
     //------------------------------------------------------------
     // Colección de Usuarios (Contiene todos los datos del perfil)
     //------------------------------------------------------------
     match /usuarios/{userId} {
+    	  allow read: if request.auth != null && request.auth.uid == userId;
+      // Permitir que el administrador lea y escriba cualquier documento
+      allow read, write: if request.auth != null &&
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.legacyTipoUsuarioId == 3;
+
+      // Permitir que cada usuario lea y escriba solo su propio documento
       allow read: if request.auth != null && request.auth.uid == userId;
 
       // Regla para crear documentos básicos temporales (mínimo requerido)
       allow create: if request.auth != null && request.auth.uid == userId &&
-                      request.resource.data.uid == request.auth.uid &&
-                      request.resource.data.correo == request.auth.token.email &&
-                      request.resource.data.nombre is string && request.resource.data.nombre.size() > 0;
+                        request.resource.data.uid == request.auth.uid &&
+                        request.resource.data.correo == request.auth.token.email &&
+                        request.resource.data.nombre is string && request.resource.data.nombre.size() > 0;
 
       // Regla para crear documentos completos (registro normal)
       allow create: if request.auth != null && request.auth.uid == userId &&
-                      request.resource.data.uid == request.auth.uid &&
-                      request.resource.data.correo == request.auth.token.email &&
-                      request.resource.data.tipousuarioid is string && request.resource.data.tipousuarioid.size() > 0 &&
-                      request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 &&
-                      request.resource.data.apellidopaterno is string && request.resource.data.apellidopaterno.size() > 0 &&
-                      (!request.resource.data.containsKey('apellidomaterno') || (request.resource.data.apellidomaterno is string)) &&
-                      request.resource.data.fechanacimiento is timestamp &&
-                      request.resource.data.ubigeoid is string && request.resource.data.ubigeoid.size() > 0 &&
-                      request.resource.data.tipo_documento is string && request.resource.data.tipo_documento.size() > 0 &&
-                      request.resource.data.numero_documento is string && request.resource.data.numero_documento.size() > 0 &&
-                      request.resource.data.genero is string && request.resource.data.genero.size() > 0 &&
-                      (!request.resource.data.containsKey('telefono') || (request.resource.data.telefono is string));
+                        request.resource.data.uid == request.auth.uid &&
+                        request.resource.data.correo == request.auth.token.email &&
+                        request.resource.data.tipousuarioid is string && request.resource.data.tipousuarioid.size() > 0 &&
+                        request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 &&
+                        request.resource.data.apellidopaterno is string && request.resource.data.apellidopaterno.size() > 0 &&
+                        (!request.resource.data.containsKey('apellidomaterno') || (request.resource.data.apellidomaterno is string)) &&
+                        request.resource.data.fechanacimiento is timestamp &&
+                        request.resource.data.ubigeoid is string && request.resource.data.ubigeoid.size() > 0 &&
+                        request.resource.data.tipo_documento is string && request.resource.data.tipo_documento.size() > 0 &&
+                        request.resource.data.numero_documento is string && request.resource.data.numero_documento.size() > 0 &&
+                        request.resource.data.genero is string && request.resource.data.genero.size() > 0 &&
+                        (!request.resource.data.containsKey('telefono') || (request.resource.data.telefono is string));
 
       allow update: if request.auth != null && request.auth.uid == userId &&
-                      request.resource.data.uid == resource.data.uid &&
-                      request.resource.data.correo == resource.data.correo &&
-                      request.resource.data.tipousuarioid == resource.data.tipousuarioid &&
-                      request.resource.data.fechanacimiento == resource.data.fechanacimiento &&
-                      request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 &&
-                      request.resource.data.apellidopaterno is string && request.resource.data.apellidopaterno.size() > 0 &&
-                      (!request.resource.data.containsKey('apellidomaterno') || request.resource.data.apellidomaterno is string) &&
-                      (!request.resource.data.containsKey('telefono') || (request.resource.data.telefono is string)) &&
-                      request.resource.data.ubigeoid is string && 
-                      request.resource.data.tipo_documento is string && 
-                      request.resource.data.numero_documento is string && 
-                      request.resource.data.genero is string; 
+                    request.resource.data.uid == resource.data.uid &&
+                    request.resource.data.correo == resource.data.correo &&
+                    request.resource.data.tipousuarioid == resource.data.tipousuarioid &&
+                    request.resource.data.fechanacimiento == resource.data.fechanacimiento &&
+                    request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 &&
+                    request.resource.data.apellidopaterno is string && request.resource.data.apellidopaterno.size() > 0 &&
+                    (!request.resource.data.containsKey('apellidomaterno') || request.resource.data.apellidomaterno is string) &&
+                    (!request.resource.data.containsKey('telefono') || (request.resource.data.telefono is string)) &&
+                    request.resource.data.ubigeoid is string && 
+                    request.resource.data.tipo_documento is string && 
+                    request.resource.data.numero_documento is string && 
+                    request.resource.data.genero is string; 
       allow delete: if false;
     }
 
@@ -88,5 +125,33 @@ service cloud.firestore {
                       request.resource.data.especialistaId == request.auth.uid;
       allow update, delete: if request.auth != null && request.auth.uid == resource.data.especialistaId;
     }
+    
+    // Envíos de análisis emocional por usuarios
+    match /emotional_analysis_submissions/{submissionId} {
+      // Solo el usuario autenticado puede crear su propio análisis
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // El usuario puede leer sus propios análisis
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      // El especialista puede leer todos los pendientes (para revisión)
+      allow read: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.legacyTipoUsuarioId == 2;
+      // Solo el sistema (especialista) puede actualizar el estado y feedbackId
+      allow update: if request.auth != null &&
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.legacyTipoUsuarioId == 2 &&
+        request.resource.data.status in ['pending', 'reviewed'] &&
+        request.resource.data.feedbackId is string;
+      allow delete: if false;
+    }
+
+    // Feedback de análisis emocional por especialista
+    match /emotional_analysis_feedback/{feedbackId} {
+      // Solo el especialista autenticado puede crear feedback
+      allow create: if request.auth != null && request.resource.data.specialistId == request.auth.uid;
+      // Permitir leer si eres el especialista o el usuario destinatario
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.specialistId ||
+        request.auth.uid == resource.data.userId
+      );
+      allow update, delete: if false;
+    }
   }
-} 
+}
