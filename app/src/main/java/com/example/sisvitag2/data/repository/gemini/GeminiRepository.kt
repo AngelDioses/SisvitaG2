@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class GeminiRepository {
-    private val apiKey = "AIzaSyDxWQqQ6tW1727eFejS4sEos6GBhXLAYwo"
+    private val apiKey = "AIzaSyDOEaffs1OQn_o9j1pWSVzjhSWv033khrA"
     
     private val generativeModel = GenerativeModel(
         modelName = "gemini-1.5-flash",

@@ -416,6 +416,16 @@ fun EmotionBar(
     total: Int
 ) {
     val percentage = if (total > 0) (value.toFloat() / total * 100) else 0f
+    val emotionColor = when (emotionName.lowercase()) {
+        "feliz" -> Color(0xFF4CAF50) // Verde
+        "triste" -> Color(0xFF2196F3) // Azul
+        "enojado" -> Color(0xFFF44336) // Rojo
+        "miedo" -> Color(0xFF9C27B0) // Púrpura
+        "sorpresa" -> Color(0xFFFF9800) // Naranja
+        "disgusto" -> Color(0xFF795548) // Marrón
+        "neutral" -> Color(0xFF607D8B) // Gris azulado
+        else -> MaterialTheme.colorScheme.primary
+    }
     
     Column(
         modifier = Modifier
@@ -446,7 +456,7 @@ fun EmotionBar(
                 .fillMaxWidth()
                 .height(8.dp)
                 .clip(RoundedCornerShape(4.dp)),
-            color = MaterialTheme.colorScheme.primary,
+            color = emotionColor,
             trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
     }
@@ -836,3 +846,4 @@ private fun translateEmotionToSpanish(emotion: String): String {
         else -> emotion.capitalize()
     }
 }
+
