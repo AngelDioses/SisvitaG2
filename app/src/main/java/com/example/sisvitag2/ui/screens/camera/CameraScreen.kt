@@ -288,7 +288,33 @@ fun AnalysisResultsOverlay(
     onClose: () -> Unit
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
-    val tabs = listOf("Gráfico de Barras", "Gráfico de Pastel")
+    val tabs = listOf("Gráfico de Barras", "Gráfico de Pastel", "Recomendaciones")
+    
+    // Obtener el repositorio de Gemini
+    val geminiRepository = get<com.example.sisvitag2.data.repository.gemini.GeminiRepository>()
+    
+    // Estado para la recomendación
+    var recommendation by remember { mutableStateOf<String?>(null) }
+    var isLoadingRecommendation by remember { mutableStateOf(false) }
+    var recommendationError by remember { mutableStateOf<String?>(null) }
+    
+    // Generar recomendación cuando se selecciona la pestaña de recomendaciones
+    LaunchedEffect(selectedTabIndex) {
+        if (selectedTabIndex == 2 && recommendation == null && !isLoadingRecommendation) {
+            isLoadingRecommendation = true
+            recommendationError = null
+            
+            geminiRepository.generateRecommendations(result)
+                .collect { result ->
+                    isLoadingRecommendation = false
+                    if (result.isSuccess) {
+                        recommendation = result.getOrNull()
+                    } else {
+                        recommendationError = result.exceptionOrNull()?.message ?: "Error desconocido"
+                    }
+                }
+        }
+    }
     
     Box(
         modifier = Modifier
@@ -320,7 +346,7 @@ fun AnalysisResultsOverlay(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Text(
-                    text = "Emoción dominante: ${result.getDominantEmotion().capitalize()}",
+                    text = "Emoción dominante: ${translateEmotionToSpanish(result.getDominantEmotion())}",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
@@ -362,6 +388,11 @@ fun AnalysisResultsOverlay(
                     when (tabIndex) {
                         0 -> BarChartContent(result = result)
                         1 -> PieChartContent(result = result)
+                        2 -> RecommendationContent(
+                            recommendation = recommendation,
+                            isLoading = isLoadingRecommendation,
+                            error = recommendationError
+                        )
                     }
                 }
                 
@@ -481,6 +512,112 @@ fun PieChartContent(result: EmotionalAnalysisResponse) {
         
         item {
             PieChartCompose(result = result)
+        }
+    }
+}
+
+@Composable
+fun RecommendationContent(
+    recommendation: String?,
+    isLoading: Boolean,
+    error: String?
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(320.dp)
+    ) {
+        item {
+            Text(
+                text = "Recomendaciones Personalizadas",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+        
+        item {
+            when {
+                isLoading -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(48.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Generando recomendaciones...",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                
+                error != null -> {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Error al generar recomendaciones",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = error,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+                
+                recommendation != null -> {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = recommendation,
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                
+                else -> {
+                    Text(
+                        text = "Selecciona esta pestaña para generar recomendaciones personalizadas",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -685,4 +822,17 @@ fun CameraPreview(
         }, ContextCompat.getMainExecutor(context))
     }
     AndroidView(modifier = Modifier.fillMaxSize(), factory = { previewView })
+}
+
+private fun translateEmotionToSpanish(emotion: String): String {
+    return when (emotion.lowercase()) {
+        "happy" -> "Feliz"
+        "sad" -> "Triste"
+        "angry" -> "Enojado"
+        "fear" -> "Miedo"
+        "surprise" -> "Sorpresa"
+        "disgust" -> "Disgusto"
+        "neutral" -> "Neutral"
+        else -> emotion.capitalize()
+    }
 }

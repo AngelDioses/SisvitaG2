@@ -115,6 +115,9 @@ dependencies {
 
     // --- OkHttp para llamadas a API ---
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // --- Google AI (Gemini) ---
+    implementation("com.google.ai.client.generativeai:generativeai:0.1.2")
 
 
 

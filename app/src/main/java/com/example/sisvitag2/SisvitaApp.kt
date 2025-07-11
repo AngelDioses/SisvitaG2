@@ -5,6 +5,7 @@ import com.example.sisvitag2.di.accountModule
 import com.example.sisvitag2.di.emotionOrientationModule
 import com.example.sisvitag2.di.emotionalAnalysisModule
 import com.example.sisvitag2.di.firebaseModule
+import com.example.sisvitag2.di.geminiModule
 import com.example.sisvitag2.di.loginModule 
 import com.example.sisvitag2.di.registerModule
 import com.example.sisvitag2.di.sessionModule // Este módulo ahora define los 3 ViewModels de sesión/auth
@@ -38,7 +39,8 @@ class SisvitaApp : Application() {
                 emotionOrientationModule,
                 emotionalAnalysisModule,
                 accountModule, // Usar solo accountModule (minúscula)
-                feedbackModule // Agregado para feedbacks
+                feedbackModule, // Agregado para feedbacks
+                geminiModule // Agregado para recomendaciones con Gemini
             )
         }
     }
